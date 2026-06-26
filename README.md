@@ -64,14 +64,22 @@ aws-iot-dashboard/
 
 ## API Endpoints
 
-  Method   Endpoint
-  -------- ------------------------------------------
-  GET      /api/health
-  POST     /api/telemetry
-  GET      /api/devices/{device_id}/latest
-  GET      /api/devices/{device_id}/history
-  POST     /api/devices/{device_id}/commands
-  GET      /api/devices/{device_id}/commands/latest
+### Implemented
+
+| Method | Endpoint | Status | Description |
+| :----: | -------- | :----: | ----------- |
+| GET | `/api/health` | ✅ | Health check endpoint |
+| POST | `/api/telemetry` | 🔄 | Receive telemetry data |
+| GET | `/docs` | ✅ | Swagger API documentation |
+
+### Planned
+
+| Method | Endpoint |
+| :----: | -------- |
+| GET | `/api/devices/{device_id}/latest` |
+| GET | `/api/devices/{device_id}/history` |
+| POST | `/api/devices/{device_id}/commands` |
+| GET | `/api/devices/{device_id}/commands/latest` |
 
 ## Team
 
