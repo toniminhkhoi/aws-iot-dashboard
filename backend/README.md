@@ -5,6 +5,7 @@ FastAPI backend for AWS IoT Dashboard.
 ## Run locally
 
 ```bash
+cd backend
 Remove-Item -Recurse -Force .\venv #để xóa
 py -m venv venv
 
