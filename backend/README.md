@@ -7,7 +7,7 @@ FastAPI backend for AWS IoT Dashboard.
 # Chạy trên Windows
 
 ```powershell
-cd backend
+cd aws-iot-dashboard/backend
 
 # (Tùy chọn) Xóa virtual environment cũ
 Remove-Item -Recurse -Force .\venv
@@ -40,7 +40,7 @@ uvicorn main:app --reload
 # Chạy trên Linux (EC2)
 
 ```bash
-cd backend
+cd aws-iot-dashboard/backend
 
 # (Tùy chọn) Xóa virtual environment cũ
 rm -rf venv
@@ -75,11 +75,20 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 Sau khi đã cấu hình `systemd`:
 
 ```bash
-sudo systemctl start aws-iot-backend
-sudo systemctl stop aws-iot-backend
-sudo systemctl restart aws-iot-backend
+# Chỉ kiểm tra backend có đang chạy không
 sudo systemctl status aws-iot-backend
+
+# Sau khi sửa code hoặc git pull code mới
+sudo systemctl restart aws-iot-backend
+
+# Nếu backend đang dừng
+sudo systemctl start aws-iot-backend
+
+# Xem log realtime khi muốn debug hoặc test API/simulator
 journalctl -u aws-iot-backend -f
+
+# Chỉ dùng khi thật sự muốn tắt backend
+sudo systemctl stop aws-iot-backend
 ```
 
 > Khi backend đã chạy bằng **systemd**, **không cần** chạy `uvicorn` thủ công nữa.
