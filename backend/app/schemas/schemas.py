@@ -12,8 +12,6 @@ class TelemetryCreate(BaseModel):
     fan_status: bool = Field(..., alias="fan")
     light_status: bool = Field(..., alias="light")
     curtain_status: bool = Field(..., alias="curtain")
-    timestamp: datetime
-
 
 # ==========================================
 # 2. DTO RESPONSE (Trả dữ liệu về cho React Frontend)

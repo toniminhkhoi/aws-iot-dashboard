@@ -1,10 +1,10 @@
 from fastapi import FastAPI
-from datetime import datetime, timezone
+from app.api import health, device
 
 app = FastAPI(
     title="AWS IoT Dashboard API",
-    description="Backend API for Cloud-based IoT Monitoring and Control Dashboard on AWS",
-    version="1.0.0"
+     description="Backend API for Cloud-based IoT Monitoring and Control Dashboard on AWS",
+     version="1.0.0"
 )
 
 @app.get("/")
@@ -15,10 +15,5 @@ def root():
         "health": "/api/health"
     }
 
-@app.get("/api/health")
-def health_check():
-    return {
-        "status": "ok",
-        "service": "aws-iot-dashboard-backend",
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
+app.include_router(health.router, prefix = "/api", tags= ["Health Check"])
+app.include_router(device.router, prefix = "/api", tags = ["Device"])
