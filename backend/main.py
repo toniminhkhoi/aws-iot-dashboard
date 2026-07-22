@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api import health, device
+from app.api import health, telemetry, device
 
 app = FastAPI(
     title="AWS IoT Dashboard API",
@@ -16,4 +16,5 @@ def root():
     }
 
 app.include_router(health.router, prefix = "/api", tags= ["Health Check"])
-app.include_router(device.router, prefix = "/api", tags = ["Device"])
+app.include_router(telemetry.router, prefix = "/api", tags = ["Telemetry"])
+app.include_router(device.router, prefix="/api", tags = ["Device"])

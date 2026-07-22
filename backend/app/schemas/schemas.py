@@ -1,3 +1,5 @@
+from typing import Generic, Optional, TypeVar
+
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
@@ -13,19 +15,22 @@ class TelemetryCreate(BaseModel):
     light_status: bool = Field(..., alias="light")
     curtain_status: bool = Field(..., alias="curtain")
 
-# ==========================================
-# 2. DTO RESPONSE (Trả dữ liệu về cho React Frontend)
-# ==========================================
-# class TelemetryResponse(BaseModel):
-#     # Cấu hình này cực kỳ quan trọng: Cho phép DTO tự động đọc dữ liệu từ Model SQLAlchemy
-#     model_config = ConfigDict(from_attributes=True) 
+#Det response
+class TelemetryResponse(BaseModel):
+    # Cấu hình này cực kỳ quan trọng: Cho phép DTO tự động đọc dữ liệu từ Model SQLAlchemy
+    model_config = ConfigDict(from_attributes=True) 
+    id: int
+    device_id: str
+    temperature: Optional[float] = None
+    humidity: Optional[float] = None
+    light_intensity: Optional[float] = None
+    fan_status: Optional[bool] = None
+    light_status: Optional[bool] = None
+    curtain_status: Optional[bool] = None
+    timestamp: datetime
 
-#     id: int
-#     device_id: str
-#     temperature: float
-#     humidity: float
-#     light_intensity: float
-#     fan_status: bool
-#     light_status: bool
-#     curtain_status: bool
-#     timestamp: datetime
+dataT = TypeVar("dataT")
+
+class APIResponse(BaseModel, Generic[dataT]):
+    status: str = "success"
+    data: dataT
