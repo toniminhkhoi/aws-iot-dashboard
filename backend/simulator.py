@@ -12,11 +12,11 @@ import requests
 # DEFAULT CONFIG
 # Có thể override bằng biến môi trường hoặc command-line args.
 # Ví dụ:
-#   API_BASE_URL=http://3.1.210.255:8000 python simulator.py
-#   python simulator.py --base-url http://3.1.210.255:8000 --device-id room_01
+#   API_BASE_URL=http://IP CUA EC2 :8000 python simulator.py
+#   python simulator.py --base-url http://IP CUA EC2 :8000 --device-id room_01
 # =========================================================
 
-DEFAULT_API_BASE_URL = os.getenv("API_BASE_URL", "http://3.1.210.255:8000")
+DEFAULT_API_BASE_URL = os.getenv("API_BASE_URL", "http://47.129.106.198:8000")
 DEFAULT_DEVICE_ID = os.getenv("DEVICE_ID", "room_01")
 DEFAULT_INTERVAL_SECONDS = int(os.getenv("INTERVAL_SECONDS", "5"))
 
