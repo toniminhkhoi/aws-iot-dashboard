@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 router = APIRouter()
 
 @router.get("/health")
-def chech_health():
+def check_health():
     return {
         "status": "ok",
         "service": "aws-iot-dashboard-backend",
