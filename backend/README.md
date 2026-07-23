@@ -11,9 +11,9 @@ Backend này nhận dữ liệu telemetry từ IoT device/simulator, lưu vào P
 > Public IP/DNS có thể thay đổi sau khi stop/start EC2 nếu chưa dùng Elastic IP.
 
 ```text
-Swagger UI:  http://3.1.210.255:8000/docs
-Health API:  http://3.1.210.255:8000/api/health
-Root API:    http://3.1.210.255:8000/
+Swagger UI:  http://IP CUA EC2:8000/docs
+Health API:  http://IP CUA EC2:8000/api/health
+Root API:    http://IP CUA EC2:8000/
 ```
 
 ---
