@@ -1,6 +1,6 @@
-from typing import Generic, Optional, TypeVar
+from typing import Generic, Optional, TypeVar, Union
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
 
 #DTO hứng dữ liệu từ IOT
@@ -15,6 +15,17 @@ class TelemetryCreate(BaseModel):
     light_status: bool = Field(..., alias="light")
     curtain_status: bool = Field(..., alias="curtain")
 
+class DeviceCommand(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    command: list[str] = Field(..., alias="Command")
+
+    @field_validator("command", mode = "before")
+    @classmethod
+    def ensure_list(cls, v):
+        if isinstance(v, str):
+            return [v]  # Chuyển "LED_ON" -> ["LED_ON"]
+        return v
+    
 #Det response
 class TelemetryResponse(BaseModel):
     # Cấu hình này cực kỳ quan trọng: Cho phép DTO tự động đọc dữ liệu từ Model SQLAlchemy

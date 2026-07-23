@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, Float, String, Boolean, DateTime, Foreig
 from sqlalchemy.orm import relationship
 from app.database.session import Base
 from datetime import datetime, timezone
+from sqlalchemy.dialects.postgresql import JSONB
 
 def get_time_now():
     return datetime.now(timezone.utc)
@@ -10,10 +11,11 @@ class Device(Base):
     __tablename__ = "devices"
     id = Column(String, primary_key = True, index = True) #sử dụng id do IOT gửi lên để làm id luôn
     building_name = Column(String, nullable = True)
-    floor = Column(String, nullable = True)
-    is_active = Column(Boolean, default = True)
+    # floor = Column(String, nullable = True)
+    # is_active = Column(Boolean, default = True)
     created_at = Column(DateTime, default = get_time_now)
     telemetry_logs = relationship("TelemetryLog", back_populates = "device")
+    command = Column(JSONB, nullable = True)
 
 class TelemetryLog(Base):
     __tablename__ = "telemetry_logs"
