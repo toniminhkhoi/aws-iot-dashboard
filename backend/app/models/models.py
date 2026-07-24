@@ -15,7 +15,7 @@ class Device(Base):
     # is_active = Column(Boolean, default = True)
     created_at = Column(DateTime, default = get_time_now)
     telemetry_logs = relationship("TelemetryLog", back_populates = "device")
-    command = Column(JSONB, nullable = True)
+    commands = relationship("DeviceCommands", back_populates= "device")
 
 class TelemetryLog(Base):
     __tablename__ = "telemetry_logs"
@@ -29,3 +29,12 @@ class TelemetryLog(Base):
     curtain_status = Column(Boolean, nullable = True)
     timestamp = Column(DateTime, default = get_time_now)
     device = relationship("Device", back_populates = "telemetry_logs")
+
+class DeviceCommands(Base):
+    __tablename__ = "commands"
+    id = Column(Integer, primary_key=True, index= True, autoincrement=True)
+    device_id = Column(String, ForeignKey("devices.id"), index=True)
+    state = Column(String)
+    timestamp = Column(DateTime, default = get_time_now)
+    command = Column(String)
+    device = relationship("Device", back_populates= "commands")

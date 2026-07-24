@@ -17,14 +17,13 @@ class TelemetryCreate(BaseModel):
 
 class DeviceCommand(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
-    command: list[str] = Field(..., alias="Command")
-
-    @field_validator("command", mode = "before")
-    @classmethod
-    def ensure_list(cls, v):
-        if isinstance(v, str):
-            return [v]  # Chuyển "LED_ON" -> ["LED_ON"]
-        return v
+    command: str = Field(..., alias="Command")
+    # @field_validator("command", mode = "before")
+    # @classmethod
+    # def ensure_list(cls, v):
+    #     if isinstance(v, str):
+    #         return [v]  # Chuyển "LED_ON" -> ["LED_ON"]
+    #     return v
     
 #Det response
 class TelemetryResponse(BaseModel):
