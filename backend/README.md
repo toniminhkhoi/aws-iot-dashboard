@@ -24,7 +24,8 @@ Trên Windows PowerShell, vào thư mục chứa key `.pem` rồi SSH:
 
 ```powershell
 cd F:\Download
-ssh -i "F:\Download\iot-dashboard-key.pem" ec2-user@ec2-47-129-106-198.ap-southeast-1.compute.amazonaws.com
+ssh -i "F:\Download\iot-dashboard-key.pem" ec2-user@ec2-47-129-180-247.ap-southeast-1.compute.amazonaws.com
+
 
 ```
 
