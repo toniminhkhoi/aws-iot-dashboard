@@ -37,7 +37,7 @@ def process_pending_commands(api_base_url: str, state: DeviceState):
     url_get = f"{api_base_url.rstrip('/')}/api/devices/{state.device_id}/commands/latest"
     
     try:
-        res = requests.get(url_get, timeout=5)
+        res = requests.get(url_get, timeout=3)
         if res.status_code == 200:
             data = res.json()
             if data.get("status") == "success" and data.get("command_state") == "Pending":
@@ -82,7 +82,7 @@ def process_pending_commands(api_base_url: str, state: DeviceState):
 
                 # 3. Gửi ACK xác nhận đã thực thi lệnh xuống Backend
                 url_ack = f"{api_base_url.rstrip('/')}/api/devices/{state.device_id}/commands/{cmd_id}/ack"
-                requests.post(url_ack, timeout=5)
+                requests.post(url_ack, timeout=3)
                 print(f"[ACK SENT] Đã xác nhận hoàn tất lệnh ID: {cmd_id}\n")
                 
     except requests.exceptions.RequestException:
