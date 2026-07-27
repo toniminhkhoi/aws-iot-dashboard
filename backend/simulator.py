@@ -21,91 +21,117 @@ DEFAULT_DEVICE_ID = os.getenv("DEVICE_ID", "room_01")
 DEFAULT_INTERVAL_SECONDS = int(os.getenv("INTERVAL_SECONDS", "5"))
 
 
-def generate_telemetry(device_id: str) -> Dict[str, Any]:
-    """
-    Giả lập dữ liệu IoT theo schema backend mới.
+class DeviceState:
+    def __init__(self, device_id: str):
+        self.device_id = device_id
+        self.mode = "AUTO"  # Chế độ: "AUTO" hoặc "MANUAL"
+        self.fan_on = False
+        self.light_on = True
+        self.curtain_closed = False
 
-    Backend mới đang nhận payload theo dạng:
-    {
-        "deviceId": "...",
-        "temperature": ...,
-        "humidity": ...,
-        "lightIntensity": ...,
-        "fan": true/false,
-        "light": true/false,
-        "curtain": true/false
-    }
+def process_pending_commands(api_base_url: str, state: DeviceState):
     """
+    Hỏi Backend xem có lệnh điều khiển nào đang Pending không.
+    Nếu có -> Cập nhật trạng thái thiết bị và gửi ACK xác nhận.
+    """
+    url_get = f"{api_base_url.rstrip('/')}/api/devices/{state.device_id}/commands/latest"
+    
+    try:
+        res = requests.get(url_get, timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("status") == "success" and data.get("command_state") == "Pending":
+                cmd_str = data.get("command")
+                cmd_id = data.get("command_id")
+                
+                print(f"\n[COMMAND RECEIVED] Lệnh: '{cmd_str}' (ID: {cmd_id})")
+                
+                # 1. Xử lý đổi chế độ Auto / Manual
+                if cmd_str == "MODE_AUTO":
+                    state.mode = "AUTO"
+                    print("--> 🤖 Chuyển sang CHẾ ĐỘ TỰ ĐỘNG (AI Auto Control)")
+                elif cmd_str == "MODE_MANUAL":
+                    state.mode = "MANUAL"
+                    print("--> ✋ Chuyển sang CHẾ ĐỘ THỦ CÔNG (Manual Override)")
+                
+                # 2. Xử lý bật/tắt thủ công (Tự động kích hoạt chế độ MANUAL)
+                elif cmd_str == "FAN_ON":
+                    state.mode = "MANUAL"
+                    state.fan_on = True
+                    print("--> ✋ [MANUAL] Bật Quạt")
+                elif cmd_str == "FAN_OFF":
+                    state.mode = "MANUAL"
+                    state.fan_on = False
+                    print("--> ✋ [MANUAL] Tắt Quạt")
+                elif cmd_str == "LIGHT_ON":
+                    state.mode = "MANUAL"
+                    state.light_on = True
+                    print("--> ✋ [MANUAL] Bật Đèn")
+                elif cmd_str == "LIGHT_OFF":
+                    state.mode = "MANUAL"
+                    state.light_on = False
+                    print("--> ✋ [MANUAL] Tắt Đèn")
+                elif cmd_str == "CURTAIN_OPEN":
+                    state.mode = "MANUAL"
+                    state.curtain_closed = False
+                    print("--> ✋ [MANUAL] Mở Rèm")
+                elif cmd_str == "CURTAIN_CLOSE":
+                    state.mode = "MANUAL"
+                    state.curtain_closed = True
+                    print("--> ✋ [MANUAL] Đóng Rèm")
 
+                # 3. Gửi ACK xác nhận đã thực thi lệnh xuống Backend
+                url_ack = f"{api_base_url.rstrip('/')}/api/devices/{state.device_id}/commands/{cmd_id}/ack"
+                requests.post(url_ack, timeout=5)
+                print(f"[ACK SENT] Đã xác nhận hoàn tất lệnh ID: {cmd_id}\n")
+                
+    except requests.exceptions.RequestException:
+        pass  # Bỏ qua nếu lỗi mạng để simulator tiếp tục chạy
+
+
+def generate_telemetry(state: DeviceState) -> Dict[str, Any]:
+    """
+    Sinh dữ liệu cảm biến ngẫu nhiên.
+    Nếu ở chế độ AUTO -> Tự động bật/tắt theo thông số.
+    Nếu ở chế độ MANUAL -> Giữ nguyên trạng thái do người dùng ra lệnh!
+    """
     temperature = round(random.uniform(26.0, 35.0), 1)
     humidity = round(random.uniform(55.0, 85.0), 1)
     light_intensity = round(random.uniform(100.0, 900.0), 1)
 
-    # Logic giả lập đơn giản:
-    # - Nhiệt độ cao thì bật quạt
-    # - Ánh sáng thấp thì bật đèn
-    # - Ánh sáng cao thì kéo rèm
-    fan_on = temperature >= 30.0
-    light_on = light_intensity < 350.0
-    curtain_closed = light_intensity >= 700.0
+    # NẾU Ở CHẾ ĐỘ TỰ ĐỘNG: Thiết bị tự quyết định
+    if state.mode == "AUTO":
+        state.fan_on = temperature >= 30.0
+        state.light_on = light_intensity < 350.0
+        state.curtain_closed = light_intensity >= 700.0
+
+    # NẾU Ở CHẾ ĐỘ THỦ CÔNG (MANUAL): Bỏ qua tính toán tự động!
+    # Giữ nguyên giá trị state.fan_on, state.light_on, state.curtain_closed hiện tại.
 
     return {
-        "deviceId": device_id,
+        "deviceId": state.device_id,
         "temperature": temperature,
         "humidity": humidity,
         "lightIntensity": light_intensity,
-        "fan": fan_on,
-        "light": light_on,
-        "curtain": curtain_closed,
+        "fan": state.fan_on,
+        "light": state.light_on,
+        "curtain": state.curtain_closed,
     }
 
 
-def send_telemetry(api_base_url: str, payload: Dict[str, Any]) -> bool:
-    """
-    Gửi telemetry lên FastAPI backend.
-    Trả về True nếu gửi thành công, False nếu lỗi.
-    """
-
+def send_telemetry(api_base_url: str, payload: Dict[str, Any], mode: str) -> bool:
     url = f"{api_base_url.rstrip('/')}/api/telemetry"
-
     try:
         response = requests.post(url, json=payload, timeout=10)
-
         if 200 <= response.status_code < 300:
-            print(f"[OK] {datetime.now().strftime('%H:%M:%S')} - sent telemetry")
-            print(f"     payload: {payload}")
-            try:
-                print(f"     response: {response.json()}")
-            except ValueError:
-                print(f"     response: {response.text}")
+            mode_badge = "🤖 AUTO  " if mode == "AUTO" else "✋ MANUAL"
+            print(f"[OK] {datetime.now().strftime('%H:%M:%S')} [{mode_badge}] Temp: {payload['temperature']}°C | Fan: {'ON ' if payload['fan'] else 'OFF'} | Light: {'ON ' if payload['light'] else 'OFF'}")
             return True
-
-        print(f"[ERROR] Backend returned HTTP {response.status_code}")
-        print(response.text)
+        print(f"[ERROR] HTTP {response.status_code}: {response.text}")
         return False
-
     except requests.exceptions.RequestException as error:
         print(f"[ERROR] Cannot send telemetry: {error}")
         return False
-
-
-def check_latest(api_base_url: str, device_id: str) -> None:
-    """
-    Gọi thử endpoint latest của backend mới:
-    GET /api/device/{device_id}/latest
-    """
-
-    url = f"{api_base_url.rstrip('/')}/api/device/{device_id}/latest"
-
-    try:
-        response = requests.get(url, timeout=10)
-        print(f"[LATEST] HTTP {response.status_code}")
-        try:
-            print(response.json())
-        except ValueError:
-            print(response.text)
-    except requests.exceptions.RequestException as error:
-        print(f"[ERROR] Cannot get latest telemetry: {error}")
 
 
 def main() -> None:
@@ -113,27 +139,28 @@ def main() -> None:
     parser.add_argument("--base-url", default=DEFAULT_API_BASE_URL, help="FastAPI backend base URL")
     parser.add_argument("--device-id", default=DEFAULT_DEVICE_ID, help="Device ID to simulate")
     parser.add_argument("--interval", type=int, default=DEFAULT_INTERVAL_SECONDS, help="Seconds between requests")
-    parser.add_argument("--once", action="store_true", help="Send only one telemetry payload, then exit")
-    parser.add_argument("--check-latest", action="store_true", help="Call latest API after sending telemetry")
-
     args = parser.parse_args()
 
-    print("IoT Simulator started")
+    print("=========================================================")
+    print("🚀 IOT SMART SIMULATOR (AUTO / MANUAL OVERRIDE ENGINE)")
+    print("=========================================================")
     print(f"Backend URL : {args.base_url}")
     print(f"Device ID   : {args.device_id}")
     print(f"Interval    : {args.interval} seconds")
-    print(f"Mode        : {'once' if args.once else 'loop'}")
-    print("-" * 60)
+    print("---------------------------------------------------------")
+
+    # Khởi tạo cỗ máy trạng thái cho thiết bị
+    device_state = DeviceState(args.device_id)
 
     while True:
-        payload = generate_telemetry(args.device_id)
-        success = send_telemetry(args.base_url, payload)
+        # Bước 1: Lắng nghe và xử lý lệnh từ Frontend/AWS gửi xuống
+        process_pending_commands(args.base_url, device_state)
 
-        if success and args.check_latest:
-            check_latest(args.base_url, args.device_id)
+        # Bước 2: Sinh dữ liệu đo đạc & tính toán trạng thái
+        payload = generate_telemetry(device_state)
 
-        if args.once:
-            break
+        # Bước 3: Gửi số liệu mới nhất lên Backend
+        send_telemetry(args.base_url, payload, device_state.mode)
 
         time.sleep(args.interval)
 
