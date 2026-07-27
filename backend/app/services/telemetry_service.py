@@ -52,8 +52,13 @@ class TelemetryService:
         self.db.refresh(new_command)
         return new_command
 
+    # ĐÃ SỬA: Chỉ lấy command có trạng thái "Pending", ưu tiên lệnh cũ nhất xử lý trước (FIFO)
     def get_latest_command(self, target_device_id: str):
-        command = self.db.query(DeviceCommands).filter_by(device_id = target_device_id).order_by(DeviceCommands.timestamp.desc()).first()
+        command = self.db.query(DeviceCommands).filter_by(
+            device_id=target_device_id, 
+            state="Pending"
+        ).order_by(DeviceCommands.timestamp.asc()).first()
+        
         if command:
             return command
         return None
