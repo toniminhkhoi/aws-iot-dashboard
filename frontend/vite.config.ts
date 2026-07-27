@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000', // <-- Trỏ về Backend Local
+        target: 'http://18.141.166.190:8000', // <-- Trỏ về Backend Local
         changeOrigin: true,
         secure: false,
       },
