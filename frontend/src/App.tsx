@@ -31,6 +31,7 @@ export default function App() {
   const [sourceMap, setSourceMap] = useState<MetricSourceMap | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [toast, setToast] = useState<string>('');
+  const [isAutoMode, setIsAutoMode] = useState<boolean>(true);
 
   // State theo dõi trạng thái Scroll cho Header & ScrollSpy
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
@@ -90,12 +91,30 @@ export default function App() {
   };
 
   const handleCommand = async (cmd: string, label: string) => {
+    // 1. Khi bấm điều khiển thủ công -> Tự động chuyển UI sang Manual
+    if (isAutoMode) {
+      setIsAutoMode(false);
+    }
+
+    // 2. Gửi lệnh thủ công xuống DB như bình thường
     setToast(`⚡ Đang phát tín hiệu [${cmd}] qua AWS Cloud...`);
     await sendSafeCommand(TARGET_DEVICE, cmd);
     setTimeout(() => {
       setToast(`✔ Thực thi thành công: ${label}`);
       setTimeout(() => setToast(''), 3000);
     }, 600);
+  };
+
+  const toggleAutoMode = async () => {
+    const nextMode = !isAutoMode;
+    setIsAutoMode(nextMode);
+    if (nextMode) {
+      setToast("🤖 Đã bật Chế độ Tự động (AI Auto Control)");
+      await sendSafeCommand(TARGET_DEVICE, "MODE_AUTO");
+    } else {
+      setToast("✋ Đã chuyển sang Chế độ Điều khiển Thủ công");
+      await sendSafeCommand(TARGET_DEVICE, "MODE_MANUAL");
+    }
   };
 
   // =========================================================================
@@ -446,10 +465,42 @@ export default function App() {
 
           {/* Bảng Nút bấm điều khiển */}
           <motion.div {...fadeInUp} className="glass-panel p-6 border-cyan-500/30">
-            <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-              <span className="w-2 h-6 bg-cyan-500 rounded-full inline-block" />
-              <span>Bảng Trạm Gửi Lệnh (Remote Actuators - {TARGET_DEVICE})</span>
-            </h3>
+            
+            {/* ĐÃ THÊM: HEADER BẢNG ĐIỀU KHIỂN + NÚT TOGGLE AUTO / MANUAL */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <span className="w-2 h-8 bg-cyan-500 rounded-full inline-block" />
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <span>Bảng Trạm Gửi Lệnh (Remote Actuators - {TARGET_DEVICE})</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
+                    <span>Chế độ hiện tại:</span>
+                    <span className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] border ${
+                      isAutoMode 
+                        ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.2)]" 
+                        : "bg-amber-500/10 border-amber-500/40 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.2)]"
+                    }`}>
+                      {isAutoMode ? "🤖 TỰ ĐỘNG (AI AUTO CONTROL)" : "✋ THỦ CÔNG (MANUAL OVERRIDE)"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* NÚT BẤM CHUYỂN ĐỔI CHẾ ĐỘ */}
+              <button
+                onClick={toggleAutoMode}
+                className={`w-full md:w-auto px-5 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-lg transform hover:-translate-y-0.5 border ${
+                  isAutoMode
+                    ? "bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+                    : "bg-cyan-500/20 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+                }`}
+              >
+                <Sparkles className="w-4 h-4 shrink-0 animate-spin" style={{ animationDuration: '3s' }} />
+                <span>{isAutoMode ? "✋ CHUYỂN SANG ĐIỀU KHIỂN THỦ CÔNG" : "🤖 BẬT LẠI CHẾ ĐỘ TỰ ĐỘNG (AUTO)"}</span>
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="p-5 rounded-xl bg-slate-800/40 border border-slate-700 flex flex-col justify-between">
                 <div className="flex justify-between items-center mb-4">
