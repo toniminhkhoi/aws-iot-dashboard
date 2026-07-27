@@ -1,4 +1,4 @@
-# YOLO UNO Hardware Client — Minimal
+# YOLO UNO Hardware Client
 
 Firmware cho project **AWS IoT Monitoring and Control Dashboard**.
 
