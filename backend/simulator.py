@@ -18,7 +18,7 @@ import requests
 
 DEFAULT_API_BASE_URL = os.getenv("API_BASE_URL", "http://47.129.106.198:8000")
 DEFAULT_DEVICE_ID = os.getenv("DEVICE_ID", "room_01")
-DEFAULT_INTERVAL_SECONDS = int(os.getenv("INTERVAL_SECONDS", "5"))
+DEFAULT_INTERVAL_SECONDS = int(os.getenv("INTERVAL_SECONDS", "3"))
 
 
 class DeviceState:
@@ -27,7 +27,7 @@ class DeviceState:
         self.mode = "AUTO"  # Chế độ: "AUTO" hoặc "MANUAL"
         self.fan_on = False
         self.light_on = True
-        self.curtain_closed = False
+        self.curtain_open = True  # True = Mở rèm (OPEN), False = Đóng rèm (CLOSED)
 
 def process_pending_commands(api_base_url: str, state: DeviceState):
     """
@@ -73,11 +73,11 @@ def process_pending_commands(api_base_url: str, state: DeviceState):
                     print("--> ✋ [MANUAL] Tắt Đèn")
                 elif cmd_str == "CURTAIN_OPEN":
                     state.mode = "MANUAL"
-                    state.curtain_closed = False
+                    state.curtain_open = True
                     print("--> ✋ [MANUAL] Mở Rèm")
                 elif cmd_str == "CURTAIN_CLOSE":
                     state.mode = "MANUAL"
-                    state.curtain_closed = True
+                    state.curtain_open = False
                     print("--> ✋ [MANUAL] Đóng Rèm")
 
                 # 3. Gửi ACK xác nhận đã thực thi lệnh xuống Backend
@@ -92,7 +92,7 @@ def process_pending_commands(api_base_url: str, state: DeviceState):
 def generate_telemetry(state: DeviceState) -> Dict[str, Any]:
     """
     Sinh dữ liệu cảm biến ngẫu nhiên.
-    Nếu ở chế độ AUTO -> Tự động bật/tắt theo thông số.
+    Nếu ở chế độ AUTO -> Tự động bật/tắt theo thông số đo đạc.
     Nếu ở chế độ MANUAL -> Giữ nguyên trạng thái do người dùng ra lệnh!
     """
     temperature = round(random.uniform(26.0, 35.0), 1)
@@ -101,12 +101,15 @@ def generate_telemetry(state: DeviceState) -> Dict[str, Any]:
 
     # NẾU Ở CHẾ ĐỘ TỰ ĐỘNG: Thiết bị tự quyết định
     if state.mode == "AUTO":
+        # Nhiệt độ cao >= 30°C -> Bật quạt làm mát
         state.fan_on = temperature >= 30.0
+        # Ánh sáng yếu < 350 Lux -> Bật đèn chiếu sáng
         state.light_on = light_intensity < 350.0
-        state.curtain_closed = light_intensity >= 700.0
+        # Ánh sáng nắng gắt >= 700 Lux -> ĐÓNG rèm cản nhiệt (False); ngược lại MỞ rèm (True)
+        state.curtain_open = light_intensity < 700.0
 
     # NẾU Ở CHẾ ĐỘ THỦ CÔNG (MANUAL): Bỏ qua tính toán tự động!
-    # Giữ nguyên giá trị state.fan_on, state.light_on, state.curtain_closed hiện tại.
+    # Giữ nguyên giá trị state.fan_on, state.light_on, state.curtain_open hiện tại.
 
     return {
         "deviceId": state.device_id,
@@ -115,7 +118,7 @@ def generate_telemetry(state: DeviceState) -> Dict[str, Any]:
         "lightIntensity": light_intensity,
         "fan": state.fan_on,
         "light": state.light_on,
-        "curtain": state.curtain_closed,
+        "curtain": state.curtain_open,
     }
 
 
@@ -125,7 +128,12 @@ def send_telemetry(api_base_url: str, payload: Dict[str, Any], mode: str) -> boo
         response = requests.post(url, json=payload, timeout=10)
         if 200 <= response.status_code < 300:
             mode_badge = "🤖 AUTO  " if mode == "AUTO" else "✋ MANUAL"
-            print(f"[OK] {datetime.now().strftime('%H:%M:%S')} [{mode_badge}] Temp: {payload['temperature']}°C | Fan: {'ON ' if payload['fan'] else 'OFF'} | Light: {'ON ' if payload['light'] else 'OFF'}")
+            fan_str = "ON " if payload['fan'] else "OFF"
+            light_str = "ON " if payload['light'] else "OFF"
+            curtain_str = "OPEN" if payload['curtain'] else "CLOSED"
+            
+            # ĐÃ SỬA: Bổ sung in trạng thái Curtain (Rèm) ra màn hình log
+            print(f"[OK] {datetime.now().strftime('%H:%M:%S')} [{mode_badge}] Temp: {payload['temperature']}°C | Light: {payload['lightIntensity']} Lux | Fan: {fan_str} | Light: {light_str} | Curtain: {curtain_str}")
             return True
         print(f"[ERROR] HTTP {response.status_code}: {response.text}")
         return False
@@ -149,19 +157,12 @@ def main() -> None:
     print(f"Interval    : {args.interval} seconds")
     print("---------------------------------------------------------")
 
-    # Khởi tạo cỗ máy trạng thái cho thiết bị
     device_state = DeviceState(args.device_id)
 
     while True:
-        # Bước 1: Lắng nghe và xử lý lệnh từ Frontend/AWS gửi xuống
         process_pending_commands(args.base_url, device_state)
-
-        # Bước 2: Sinh dữ liệu đo đạc & tính toán trạng thái
         payload = generate_telemetry(device_state)
-
-        # Bước 3: Gửi số liệu mới nhất lên Backend
         send_telemetry(args.base_url, payload, device_state.mode)
-
         time.sleep(args.interval)
 
 
