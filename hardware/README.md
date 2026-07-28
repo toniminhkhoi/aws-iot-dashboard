@@ -9,6 +9,31 @@ Firmware cho project **AWS IoT Monitoring and Control Dashboard**.
 - Servo điều khiển rèm
 - Cảm biến ánh sáng analog
 - Cảm biến nhiệt độ và độ ẩm DHT20
+- Màn hình LCD 1602 I2C (tự dò địa chỉ `0x21`, `0x27` hoặc `0x3F`)
+
+## Kết nối LCD I2C
+
+| LCD 1602 I2C | YOLO UNO |
+| --- | --- |
+| GND | GND |
+| VCC | 3V3 |
+| SDA | GPIO11 |
+| SCL | GPIO12 |
+
+LCD và DHT20 dùng chung bus I2C nên có thể nối song song SDA, SCL, 3V3 và GND.
+Nếu module LCD chỉ hoạt động ổn định ở 5V, cần dùng bộ chuyển mức logic I2C
+hai chiều; không đưa tín hiệu kéo lên 5V trực tiếp vào GPIO của ESP32-S3.
+
+## Bố trí cổng phần cứng
+
+| Thiết bị | Cổng trên YOLO UNO | Chân dùng trong code |
+| --- | --- | --- |
+| Cảm biến ánh sáng | Grove `A1-A0` | A0 / GPIO1 |
+| Quạt hai chân điều khiển | Grove `D8-D7` | D8/GPIO17 và D7/GPIO10 |
+| Đèn LED | Grove `D4-D3` | D3 / GPIO6 |
+| Servo rèm | Grove `D6-D5` | D5 / GPIO8 |
+| DHT20 | Grove `I2C1` | SDA/GPIO11, SCL/GPIO12 |
+| LCD1602 I2C | Grove `I2C2` | SDA/GPIO11, SCL/GPIO12 |
 
 Firmware không chứa PIR, ultrasonic, buzzer, LCD hoặc MQTT.
 
