@@ -67,10 +67,9 @@ The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, C
 | Member | Responsibility |
 |---|---|
 | **Phạm Lê Minh Khôi** | AWS infrastructure, EC2 deployment, RDS, CloudWatch, Security Groups, DevOps, and YOLO UNO hardware |
-| **Thượng Đình Hưng** | React + Vite frontend and dashboard interface |
+| **Thượng Đình Hưng** | React + Vite frontend, dashboard interface, overall system integration, debugging, and project demo recording |
 | **Ngô Minh Thuận** | FastAPI backend, API endpoints, database integration, and command processing |
 | **Lê Bảo Khánh** | Documentation, proposal, blog posts, weekly worklog, and event reports |
-
 ---
 
 ## 4. Technologies

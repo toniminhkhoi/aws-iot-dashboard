@@ -66,7 +66,7 @@ Kiến trúc hệ thống gồm:
 | Thành viên | Phụ trách |
 |---|---|
 | **Phạm Lê Minh Khôi** | Hạ tầng AWS, triển khai EC2, RDS, CloudWatch, Security Groups, DevOps và phần cứng YOLO UNO |
-| **Thượng Đình Hưng** | Frontend React + Vite và giao diện dashboard |
+| **Thượng Đình Hưng** | Frontend React + Vite, giao diện dashboard, tích hợp tổng thể hệ thống, debug và quay video demo project |
 | **Ngô Minh Thuận** | Backend FastAPI, API endpoint, tích hợp database và xử lý command |
 | **Lê Bảo Khánh** | Documentation, proposal, blog, worklog theo tuần và báo cáo event |
 
