@@ -29,24 +29,22 @@ Hardware định kỳ lấy command mới nhất từ backend, thực thi comman
 
 ## 2. Kiến trúc
 
-```text
-Dashboard User
-      |
-      v
-React + Vite Frontend
-      |
-      | REST API
-      v
-Amazon EC2 - FastAPI Backend
-      <--------------------> Amazon RDS for PostgreSQL
-      ^
-      | Telemetry / Pending command / Command ACK
-      |
-IoT Hardware - YOLO UNO
+<p align="center">
+  <img
+    src="diagrams/aws-iot-dashboard-architecture.png"
+    alt="Kiến trúc AWS IoT Monitoring and Control Dashboard"
+    width="100%"
+  />
+</p>
 
-Amazon EC2 --------> Amazon CloudWatch
-Amazon RDS --------> Amazon CloudWatch
-Amazon CloudWatch -> CloudWatch Alarms
+Kiến trúc hệ thống gồm:
+
+- Frontend React + Vite chạy bên ngoài AWS.
+- FastAPI backend được triển khai trên Amazon EC2.
+- Amazon RDS for PostgreSQL lưu telemetry và command.
+- YOLO UNO gửi telemetry, lấy command Pending và gửi ACK sau khi thực thi.
+- Amazon CloudWatch thu thập log backend, metric EC2 và metric RDS.
+- CloudWatch Alarms theo dõi CPU, memory, disk và database connections.
 ```
 
 ### Dịch vụ AWS
