@@ -116,7 +116,41 @@ The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, C
 
 ---
 
-## 5. Repository Structure
+## 5. Repository Structure and Submission Mapping
+
+This project uses two repositories:
+
+1. **`aws-fcj-report`** is the Hugo report repository used for internship
+   submission. This workshop is documented under `content/5-Workshop/`.
+2. **`aws-iot-dashboard`** is this source repository and contains the complete
+   backend, frontend, and YOLO UNO firmware.
+
+### Submission/report repository
+
+```text
+aws-fcj-report/
+├── .github/
+│   └── workflows/                 # GitHub Pages deployment
+├── archetypes/                    # Hugo content templates
+├── content/
+│   ├── 1-Worklog/
+│   ├── 2-Proposal/
+│   ├── 3-BlogsTranslated/
+│   ├── 4-EventParticipated/
+│   ├── 5-Workshop/                # This AWS IoT Dashboard workshop
+│   ├── 6-Self-evaluation/
+│   ├── 7-Feedback/
+│   ├── _index.md
+│   └── _index.vi.md
+├── layouts/                       # Hugo layout overrides
+├── static/                        # Images and other static files
+├── themes/
+│   └── hugo-theme-learn/
+├── config.toml
+└── README.md
+```
+
+### Workshop source repository
 
 ```text
 aws-iot-dashboard/
@@ -153,10 +187,7 @@ aws-iot-dashboard/
 │   └── README.md
 ├── diagrams/
 │   └── aws-iot-dashboard-architecture.png
-├── docs/
-│   └── deployment.md
-├── report/                        # Proposal, blogs, worklogs, and event reports
-├── screenshots/                   # Testing and deployment evidence
+├── screenshots/                   # Local testing and deployment evidence
 ├── .gitignore
 ├── README.md
 └── README.vi.md
@@ -428,10 +459,11 @@ sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backe
 
 ## 12. Documentation
 
-- Deployment guides: `docs/`
+- Submission repository:
+  [`aws-fcj-report`](https://github.com/lekhanh1210lhp-cyber/aws-fcj-report)
+- Workshop report section: `aws-fcj-report/content/5-Workshop/`
 - Architecture diagrams: `diagrams/`
-- Testing evidence: `screenshots/`
-- Proposal, blogs, worklogs, and event reports: `report/`
+- Local testing evidence: `screenshots/`
 - Hardware guide: `hardware/README.md`
 
 ---

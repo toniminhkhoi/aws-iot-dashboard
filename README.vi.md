@@ -116,7 +116,41 @@ Kiến trúc hệ thống gồm:
 
 ---
 
-## 5. Cấu trúc repository
+## 5. Cấu trúc repository và vị trí nộp bài
+
+Project sử dụng hai repository:
+
+1. **`aws-fcj-report`** là repository Hugo dùng để nộp báo cáo thực tập.
+   Nội dung workshop này nằm trong `content/5-Workshop/`.
+2. **`aws-iot-dashboard`** là repository source hiện tại, chứa toàn bộ backend,
+   frontend và firmware YOLO UNO.
+
+### Repository nộp báo cáo
+
+```text
+aws-fcj-report/
+├── .github/
+│   └── workflows/                 # Triển khai GitHub Pages
+├── archetypes/                    # Template nội dung Hugo
+├── content/
+│   ├── 1-Worklog/
+│   ├── 2-Proposal/
+│   ├── 3-BlogsTranslated/
+│   ├── 4-EventParticipated/
+│   ├── 5-Workshop/                # Workshop AWS IoT Dashboard này
+│   ├── 6-Self-evaluation/
+│   ├── 7-Feedback/
+│   ├── _index.md
+│   └── _index.vi.md
+├── layouts/                       # Layout Hugo tùy chỉnh
+├── static/                        # Hình ảnh và tài nguyên tĩnh
+├── themes/
+│   └── hugo-theme-learn/
+├── config.toml
+└── README.md
+```
+
+### Repository source của workshop
 
 ```text
 aws-iot-dashboard/
@@ -153,10 +187,7 @@ aws-iot-dashboard/
 │   └── README.md
 ├── diagrams/
 │   └── aws-iot-dashboard-architecture.png
-├── docs/
-│   └── deployment.md
-├── report/                        # Proposal, blog, worklog và báo cáo event
-├── screenshots/                   # Bằng chứng kiểm thử và triển khai
+├── screenshots/                   # Bằng chứng kiểm thử và triển khai local
 ├── .gitignore
 ├── README.md
 └── README.vi.md
@@ -432,10 +463,11 @@ sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backe
 
 ## 12. Tài liệu
 
-- Hướng dẫn triển khai: `docs/`
+- Repository nộp báo cáo:
+  [`aws-fcj-report`](https://github.com/lekhanh1210lhp-cyber/aws-fcj-report)
+- Phần báo cáo workshop: `aws-fcj-report/content/5-Workshop/`
 - Sơ đồ kiến trúc: `diagrams/`
-- Bằng chứng kiểm thử: `screenshots/`
-- Proposal, blog, worklog và báo cáo event: `report/`
+- Bằng chứng kiểm thử local: `screenshots/`
 - Hướng dẫn hardware: `hardware/README.md`
 
 ---
