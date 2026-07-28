@@ -211,6 +211,8 @@ aws-iot-dashboard/
 Command hỗ trợ:
 
 ```text
+MODE_AUTO
+MODE_MANUAL
 FAN_ON
 FAN_OFF
 LIGHT_ON

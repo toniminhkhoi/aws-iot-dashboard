@@ -45,12 +45,18 @@ Firmware không chứa PIR, ultrasonic, buzzer, LCD hoặc MQTT.
 
 ## Command hỗ trợ
 
+- `MODE_AUTO`
+- `MODE_MANUAL`
 - `FAN_ON`
 - `FAN_OFF`
 - `LIGHT_ON`
 - `LIGHT_OFF`
 - `CURTAIN_OPEN`
 - `CURTAIN_CLOSE`
+
+Ở chế độ Auto, quạt bật khi nhiệt độ từ 30°C, LED bật khi giá trị ánh sáng
+dưới 350 và rèm đóng khi giá trị ánh sáng từ 700. Lệnh điều khiển trực tiếp
+quạt, LED hoặc rèm sẽ tự chuyển firmware sang chế độ Manual.
 
 ## Chuẩn bị cấu hình
 
