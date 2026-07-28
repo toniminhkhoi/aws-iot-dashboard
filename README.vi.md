@@ -120,7 +120,7 @@ Kiến trúc hệ thống gồm:
 
 Project sử dụng hai repository:
 
-1. **`aws-fcj-report`** là repository Hugo dùng để nộp báo cáo thực tập.
+1. Một **repository báo cáo Hugo riêng** được dùng để nộp báo cáo thực tập.
    Nội dung workshop này nằm trong `content/5-Workshop/`.
 2. **`aws-iot-dashboard`** là repository source hiện tại, chứa toàn bộ backend,
    frontend và firmware YOLO UNO.
@@ -128,7 +128,7 @@ Project sử dụng hai repository:
 ### Repository nộp báo cáo
 
 ```text
-aws-fcj-report/
+submission-report/
 ├── .github/
 │   └── workflows/                 # Triển khai GitHub Pages
 ├── archetypes/                    # Template nội dung Hugo
@@ -187,7 +187,6 @@ aws-iot-dashboard/
 │   └── README.md
 ├── diagrams/
 │   └── aws-iot-dashboard-architecture.png
-├── screenshots/                   # Bằng chứng kiểm thử và triển khai local
 ├── .gitignore
 ├── README.md
 └── README.vi.md
@@ -465,11 +464,8 @@ sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backe
 
 ## 12. Tài liệu
 
-- Repository nộp báo cáo:
-  [`aws-fcj-report`](https://github.com/lekhanh1210lhp-cyber/aws-fcj-report)
-- Phần báo cáo workshop: `aws-fcj-report/content/5-Workshop/`
+- Báo cáo workshop hoàn chỉnh: `content/5-Workshop/` trong repository nộp bài riêng
 - Sơ đồ kiến trúc: `diagrams/`
-- Bằng chứng kiểm thử local: `screenshots/`
 - Hướng dẫn hardware: `hardware/README.md`
 
 ---

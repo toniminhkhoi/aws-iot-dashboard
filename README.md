@@ -120,15 +120,15 @@ The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, C
 
 This project uses two repositories:
 
-1. **`aws-fcj-report`** is the Hugo report repository used for internship
-   submission. This workshop is documented under `content/5-Workshop/`.
+1. A separate **Hugo report repository** is used for internship submission.
+   This workshop is documented under `content/5-Workshop/`.
 2. **`aws-iot-dashboard`** is this source repository and contains the complete
    backend, frontend, and YOLO UNO firmware.
 
 ### Submission/report repository
 
 ```text
-aws-fcj-report/
+submission-report/
 ├── .github/
 │   └── workflows/                 # GitHub Pages deployment
 ├── archetypes/                    # Hugo content templates
@@ -187,7 +187,6 @@ aws-iot-dashboard/
 │   └── README.md
 ├── diagrams/
 │   └── aws-iot-dashboard-architecture.png
-├── screenshots/                   # Local testing and deployment evidence
 ├── .gitignore
 ├── README.md
 └── README.vi.md
@@ -461,11 +460,8 @@ sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backe
 
 ## 12. Documentation
 
-- Submission repository:
-  [`aws-fcj-report`](https://github.com/lekhanh1210lhp-cyber/aws-fcj-report)
-- Workshop report section: `aws-fcj-report/content/5-Workshop/`
+- Final workshop report: `content/5-Workshop/` in the separate submission repository
 - Architecture diagrams: `diagrams/`
-- Local testing evidence: `screenshots/`
 - Hardware guide: `hardware/README.md`
 
 ---
