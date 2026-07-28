@@ -99,8 +99,9 @@ The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, C
 - DHT20 temperature and humidity sensor
 - Analog light sensor
 - Fan module
-- Relay/light module
+- Grove LED module
 - Servo motor
+- LCD1602 I2C display
 
 ### AWS
 
@@ -120,24 +121,45 @@ The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, C
 ```text
 aws-iot-dashboard/
 ├── backend/
+│   ├── app/
+│   │   ├── api/                  # Health, telemetry, and device command routes
+│   │   ├── database/             # PostgreSQL session and database initialization
+│   │   ├── models/               # SQLAlchemy models
+│   │   ├── schemas/              # Pydantic request and response schemas
+│   │   ├── services/             # Telemetry and command business logic
+│   │   └── setting.py            # Backend environment configuration
+│   ├── main.py                   # FastAPI application entry point
+│   ├── simulator.py              # Software device simulator
+│   ├── requirements.txt
+│   └── README.md
 ├── frontend/
+│   ├── public/                   # Static assets
+│   ├── src/
+│   │   ├── assets/               # Dashboard images
+│   │   ├── services/             # API and IoT data mapping
+│   │   ├── App.tsx               # Main dashboard
+│   │   └── main.tsx              # React entry point
+│   ├── package.json
+│   └── vite.config.ts
 ├── hardware/
 │   ├── boards/
-│   │   └── yolo_uno.json
+│   │   └── yolo_uno.json         # Custom PlatformIO board definition
 │   ├── include/
 │   │   ├── secrets.example.h
-│   │   └── secrets.h
+│   │   └── secrets.h             # Local only; ignored by Git
 │   ├── src/
-│   │   └── main.cpp
+│   │   └── main.cpp              # YOLO UNO firmware
 │   ├── platformio.ini
 │   └── README.md
 ├── diagrams/
+│   └── aws-iot-dashboard-architecture.png
 ├── docs/
-├── report/
-├── screenshots/
+│   └── deployment.md
+├── report/                        # Proposal, blogs, worklogs, and event reports
+├── screenshots/                   # Testing and deployment evidence
+├── .gitignore
 ├── README.md
-├── README.vi.md
-└── .gitignore
+└── README.vi.md
 ```
 
 ---
@@ -392,15 +414,15 @@ sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backe
 
 ## 11. Testing Checklist
 
-- [ ] YOLO UNO connects to Wi-Fi.
-- [ ] YOLO UNO can reach the EC2 backend.
-- [ ] Telemetry is stored in PostgreSQL.
-- [ ] Latest and history APIs return data.
-- [ ] Frontend can create commands.
-- [ ] Hardware receives and executes commands.
-- [ ] Hardware sends command ACK.
-- [ ] Command state changes from `Pending` to `Executed`.
-- [ ] CloudWatch receives logs and metrics.
+- [x] YOLO UNO connects to Wi-Fi.
+- [x] YOLO UNO can reach the EC2 backend.
+- [x] Telemetry is stored in PostgreSQL.
+- [x] Latest and history APIs return data.
+- [x] Frontend can create commands.
+- [x] Hardware receives and executes commands.
+- [x] Hardware sends command ACK.
+- [x] Command state changes from `Pending` to `Executed`.
+- [x] CloudWatch receives logs and metrics.
 
 ---
 

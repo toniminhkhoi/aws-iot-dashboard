@@ -99,8 +99,9 @@ Kiến trúc hệ thống gồm:
 - Cảm biến nhiệt độ và độ ẩm DHT20
 - Cảm biến ánh sáng analog
 - Module quạt
-- Relay/đèn
+- Module đèn LED Grove
 - Servo motor
+- Màn hình LCD1602 I2C
 
 ### AWS
 
@@ -120,24 +121,45 @@ Kiến trúc hệ thống gồm:
 ```text
 aws-iot-dashboard/
 ├── backend/
+│   ├── app/
+│   │   ├── api/                  # Route health, telemetry và device command
+│   │   ├── database/             # PostgreSQL session và khởi tạo database
+│   │   ├── models/               # SQLAlchemy model
+│   │   ├── schemas/              # Pydantic request và response schema
+│   │   ├── services/             # Nghiệp vụ telemetry và command
+│   │   └── setting.py            # Cấu hình môi trường backend
+│   ├── main.py                   # Điểm khởi chạy FastAPI
+│   ├── simulator.py              # Chương trình mô phỏng thiết bị
+│   ├── requirements.txt
+│   └── README.md
 ├── frontend/
+│   ├── public/                   # Tài nguyên tĩnh
+│   ├── src/
+│   │   ├── assets/               # Hình ảnh dashboard
+│   │   ├── services/             # API và ánh xạ dữ liệu IoT
+│   │   ├── App.tsx               # Dashboard chính
+│   │   └── main.tsx              # Điểm khởi chạy React
+│   ├── package.json
+│   └── vite.config.ts
 ├── hardware/
 │   ├── boards/
-│   │   └── yolo_uno.json
+│   │   └── yolo_uno.json         # Định nghĩa board PlatformIO tùy chỉnh
 │   ├── include/
 │   │   ├── secrets.example.h
-│   │   └── secrets.h
+│   │   └── secrets.h             # Chỉ lưu local, Git bỏ qua
 │   ├── src/
-│   │   └── main.cpp
+│   │   └── main.cpp              # Firmware YOLO UNO
 │   ├── platformio.ini
 │   └── README.md
 ├── diagrams/
+│   └── aws-iot-dashboard-architecture.png
 ├── docs/
-├── report/
-├── screenshots/
+│   └── deployment.md
+├── report/                        # Proposal, blog, worklog và báo cáo event
+├── screenshots/                   # Bằng chứng kiểm thử và triển khai
+├── .gitignore
 ├── README.md
-├── README.vi.md
-└── .gitignore
+└── README.vi.md
 ```
 
 ---
@@ -396,15 +418,15 @@ sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backe
 
 ## 11. Checklist kiểm thử
 
-- [ ] YOLO UNO kết nối Wi-Fi.
-- [ ] YOLO UNO truy cập được backend EC2.
-- [ ] Telemetry được lưu vào PostgreSQL.
-- [ ] API latest và history trả dữ liệu.
-- [ ] Frontend tạo được command.
-- [ ] Hardware nhận và thực thi command.
-- [ ] Hardware gửi command ACK.
-- [ ] Command chuyển từ `Pending` sang `Executed`.
-- [ ] CloudWatch nhận logs và metrics.
+- [x] YOLO UNO kết nối Wi-Fi.
+- [x] YOLO UNO truy cập được backend EC2.
+- [x] Telemetry được lưu vào PostgreSQL.
+- [x] API latest và history trả dữ liệu.
+- [x] Frontend tạo được command.
+- [x] Hardware nhận và thực thi command.
+- [x] Hardware gửi command ACK.
+- [x] Command chuyển từ `Pending` sang `Executed`.
+- [x] CloudWatch nhận logs và metrics.
 
 ---
 
