@@ -82,6 +82,7 @@ LiquidCrystal_I2C* lcd = nullptr;
 
 bool dhtReady = false;
 bool lcdReady = false;
+bool automaticMode = true;
 bool fanState = false;
 bool lightState = false;
 int curtainAngle = CURTAIN_CLOSE_ANGLE;
@@ -332,6 +333,43 @@ void setCurtain(int angle) {
     Serial.println(curtainAngle);
 }
 
+void setAutomaticMode(bool enabled) {
+    automaticMode = enabled;
+    preferences.putBool("autoMode", automaticMode);
+
+    Serial.print("[MODE] ");
+    Serial.println(automaticMode ? "AUTO" : "MANUAL");
+}
+
+void applyAutomaticControl() {
+    if (!automaticMode || isnan(latestTemperature)) {
+        return;
+    }
+
+    const bool desiredFanState = latestTemperature >= 30.0F;
+    const bool desiredLightState = latestLightValue < 350;
+    const bool desiredCurtainOpen =
+        latestLightValue < 700;
+    const bool curtainOpen =
+        curtainAngle >= CURTAIN_OPEN_ANGLE;
+
+    if (fanState != desiredFanState) {
+        setFan(desiredFanState);
+    }
+
+    if (lightState != desiredLightState) {
+        setLight(desiredLightState);
+    }
+
+    if (curtainOpen != desiredCurtainOpen) {
+        setCurtain(
+            desiredCurtainOpen
+                ? CURTAIN_OPEN_ANGLE
+                : CURTAIN_CLOSE_ANGLE
+        );
+    }
+}
+
 bool executeCommand(String command) {
     command.trim();
     command.toUpperCase();
@@ -339,32 +377,49 @@ bool executeCommand(String command) {
     Serial.print("[COMMAND] Execute: ");
     Serial.println(command);
 
+    if (command == "MODE_AUTO") {
+        setAutomaticMode(true);
+        applyAutomaticControl();
+        return true;
+    }
+
+    if (command == "MODE_MANUAL") {
+        setAutomaticMode(false);
+        return true;
+    }
+
     if (command == "FAN_ON") {
+        setAutomaticMode(false);
         setFan(true);
         return true;
     }
 
     if (command == "FAN_OFF") {
+        setAutomaticMode(false);
         setFan(false);
         return true;
     }
 
     if (command == "LIGHT_ON") {
+        setAutomaticMode(false);
         setLight(true);
         return true;
     }
 
     if (command == "LIGHT_OFF") {
+        setAutomaticMode(false);
         setLight(false);
         return true;
     }
 
     if (command == "CURTAIN_OPEN") {
+        setAutomaticMode(false);
         setCurtain(CURTAIN_OPEN_ANGLE);
         return true;
     }
 
     if (command == "CURTAIN_CLOSE") {
+        setAutomaticMode(false);
         setCurtain(CURTAIN_CLOSE_ANGLE);
         return true;
     }
@@ -699,9 +754,12 @@ void setup() {
     initializeDHT20();
 
     preferences.begin("iot-device", false);
+    automaticMode = preferences.getBool("autoMode", true);
     lastAckedCommandId = preferences.getInt("lastAck", -1);
     pendingAckCommandId = preferences.getInt("pendingAck", -1);
 
+    Serial.print("[STATE] mode=");
+    Serial.println(automaticMode ? "AUTO" : "MANUAL");
     Serial.print("[STATE] lastAckedCommandId=");
     Serial.println(lastAckedCommandId);
     Serial.print("[STATE] pendingAckCommandId=");
@@ -726,6 +784,7 @@ void loop() {
     if (now - lastLcdUpdateMs >= LCD_UPDATE_INTERVAL_MS) {
         lastLcdUpdateMs = now;
         refreshSensors();
+        applyAutomaticControl();
         updateLcd();
     }
 
