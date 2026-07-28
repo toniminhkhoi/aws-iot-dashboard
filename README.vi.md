@@ -27,26 +27,24 @@ Hardware định kỳ lấy command mới nhất từ backend, thực thi comman
 
 ---
 
-## 2. Kiến trúc
+## 2. Architecture
 
-```text
-Dashboard User
-      |
-      v
-React + Vite Frontend
-      |
-      | REST API
-      v
-Amazon EC2 - FastAPI Backend
-      <--------------------> Amazon RDS for PostgreSQL
-      ^
-      | Telemetry / Pending command / Command ACK
-      |
-IoT Hardware - YOLO UNO
+<p align="center">
+  <img
+    src="diagrams/aws-iot-dashboard-architecture.png"
+    alt="AWS IoT Monitoring and Control Dashboard Architecture"
+    width="100%"
+  />
+</p>
 
-Amazon EC2 --------> Amazon CloudWatch
-Amazon RDS --------> Amazon CloudWatch
-Amazon CloudWatch -> CloudWatch Alarms
+The architecture includes:
+
+- A React + Vite frontend running outside AWS.
+- A FastAPI backend hosted on Amazon EC2.
+- Amazon RDS for PostgreSQL for telemetry and command persistence.
+- YOLO UNO hardware sending telemetry, polling pending commands, and sending command acknowledgements.
+- Amazon CloudWatch collecting EC2 logs, EC2 metrics, and RDS metrics.
+- CloudWatch Alarms monitoring CPU, memory, disk usage, and database connections.
 ```
 
 ### Dịch vụ AWS
