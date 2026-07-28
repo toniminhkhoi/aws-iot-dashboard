@@ -59,7 +59,7 @@ The architecture includes:
 - CloudWatch Alarms
 
 Project không sử dụng AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, Cognito, CloudFront hoặc DynamoDB.
-
+```
 ---
 
 ## 3. Phân công thành viên

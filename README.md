@@ -59,7 +59,7 @@ The architecture includes:
 - CloudWatch Alarms
 
 The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, Cognito, CloudFront, or DynamoDB.
-
+```
 ---
 
 ## 3. Team Responsibilities
