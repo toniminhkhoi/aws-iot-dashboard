@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 #include <ESP32Servo.h>
 #include <DHT20.h>
+#include <LiquidCrystal_I2C.h>
 #include <Preferences.h>
 
 #include "secrets.h"
@@ -14,10 +15,11 @@
 // ============================================================
 // Phần cứng được sử dụng:
 //   - Quạt
-//   - Đèn/relay
+//   - Đèn LED
 //   - Servo rèm
 //   - Cảm biến ánh sáng analog
 //   - Cảm biến nhiệt độ, độ ẩm DHT20
+//   - Màn hình LCD 1602 I2C
 //
 // YOLO UNO giao tiếp trực tiếp với FastAPI backend trên EC2:
 //   POST /api/telemetry
@@ -30,20 +32,22 @@
 // =====================
 // PIN MAPPING ĐÃ TEST
 // =====================
+// Grove A1-A0: dùng kênh A0 / GPIO1 cho cảm biến ánh sáng.
 #define LIGHT_SENSOR_PIN 1
 
+// Cả bốn cổng I2C1-I2C4 đều dùng chung hai chân này.
 #define I2C_SDA 11
 #define I2C_SCL 12
 
-// Mô-đun quạt dùng hai chân D8-D7.
+// Grove D8-D7: mô-đun quạt dùng cả hai tín hiệu.
 // Theo kết quả test: GPIO10 HIGH và GPIO17 LOW thì quạt chạy.
 #define PIN_FAN 10
 #define PIN_FAN_CONTROL 17
 
-// Relay đèn: GPIO6 HIGH thì đèn bật.
+// Grove D4-D3: LED dùng tín hiệu D3 / GPIO6, HIGH thì sáng.
 #define PIN_LIGHT 6
 
-// Servo rèm.
+// Grove D6-D5: servo rèm dùng tín hiệu D5 / GPIO38.
 #define PIN_SERVO 38
 
 // =====================
@@ -54,9 +58,16 @@ constexpr int CURTAIN_OPEN_ANGLE = 90;
 
 constexpr unsigned long TELEMETRY_INTERVAL_MS = 5000;
 constexpr unsigned long COMMAND_POLL_INTERVAL_MS = 2000;
+constexpr unsigned long LCD_UPDATE_INTERVAL_MS = 2000;
 constexpr unsigned long WIFI_RETRY_INTERVAL_MS = 10000;
 constexpr unsigned long WIFI_CONNECT_TIMEOUT_MS = 20000;
 constexpr uint16_t HTTP_TIMEOUT_MS = 7000;
+
+constexpr uint8_t LCD_COLUMNS = 16;
+constexpr uint8_t LCD_ROWS = 2;
+constexpr uint8_t LCD_ADDRESS_OHSTEM = 0x21;
+constexpr uint8_t LCD_ADDRESS_COMMON = 0x27;
+constexpr uint8_t LCD_ADDRESS_ALTERNATE = 0x3F;
 
 // =====================
 // GLOBAL OBJECTS
@@ -64,8 +75,13 @@ constexpr uint16_t HTTP_TIMEOUT_MS = 7000;
 Servo curtainServo;
 DHT20 dht20;
 Preferences preferences;
+LiquidCrystal_I2C lcd21(LCD_ADDRESS_OHSTEM, LCD_COLUMNS, LCD_ROWS);
+LiquidCrystal_I2C lcd27(LCD_ADDRESS_COMMON, LCD_COLUMNS, LCD_ROWS);
+LiquidCrystal_I2C lcd3F(LCD_ADDRESS_ALTERNATE, LCD_COLUMNS, LCD_ROWS);
+LiquidCrystal_I2C* lcd = nullptr;
 
 bool dhtReady = false;
+bool lcdReady = false;
 bool fanState = false;
 bool lightState = false;
 int curtainAngle = CURTAIN_CLOSE_ANGLE;
@@ -76,6 +92,7 @@ int latestLightValue = 0;
 
 unsigned long lastTelemetryMs = 0;
 unsigned long lastCommandPollMs = 0;
+unsigned long lastLcdUpdateMs = 0;
 unsigned long lastWiFiAttemptMs = 0;
 
 // Lưu command ID để tránh thực thi lặp khi ACK lỗi hoặc board khởi động lại.
@@ -126,6 +143,59 @@ void initializeDHT20() {
     dht20.begin();
     dhtReady = true;
     Serial.println("[DHT20] Initialized");
+}
+
+bool isI2cDevicePresent(uint8_t address) {
+    Wire.beginTransmission(address);
+    return Wire.endTransmission() == 0;
+}
+
+void printLcdLine(uint8_t row, const char* text) {
+    if (!lcdReady || lcd == nullptr) {
+        return;
+    }
+
+    lcd->setCursor(0, row);
+
+    uint8_t column = 0;
+    while (text[column] != '\0' && column < LCD_COLUMNS) {
+        lcd->print(text[column]);
+        column++;
+    }
+
+    while (column < LCD_COLUMNS) {
+        lcd->print(' ');
+        column++;
+    }
+}
+
+void initializeLcd() {
+    uint8_t address = 0;
+
+    if (isI2cDevicePresent(LCD_ADDRESS_OHSTEM)) {
+        address = LCD_ADDRESS_OHSTEM;
+        lcd = &lcd21;
+    } else if (isI2cDevicePresent(LCD_ADDRESS_COMMON)) {
+        address = LCD_ADDRESS_COMMON;
+        lcd = &lcd27;
+    } else if (isI2cDevicePresent(LCD_ADDRESS_ALTERNATE)) {
+        address = LCD_ADDRESS_ALTERNATE;
+        lcd = &lcd3F;
+    } else {
+        Serial.println("[LCD] Device 0x21/0x27/0x3F not found");
+        return;
+    }
+
+    lcd->init();
+    lcd->backlight();
+    lcd->clear();
+    lcdReady = true;
+
+    printLcdLine(0, "YOLO UNO");
+    printLcdLine(1, "Starting...");
+
+    Serial.print("[LCD] Initialized at 0x");
+    Serial.println(address, HEX);
 }
 
 // =====================
@@ -199,6 +269,38 @@ bool refreshSensors() {
     Serial.println(latestLightValue);
 
     return !isnan(latestTemperature) && !isnan(latestHumidity);
+}
+
+void updateLcd() {
+    if (!lcdReady) {
+        return;
+    }
+
+    char firstLine[LCD_COLUMNS + 1];
+    char secondLine[LCD_COLUMNS + 1];
+
+    if (isnan(latestTemperature) || isnan(latestHumidity)) {
+        snprintf(firstLine, sizeof(firstLine), "T:--.-C H:--.-%%");
+    } else {
+        snprintf(
+            firstLine,
+            sizeof(firstLine),
+            "T:%4.1fC H:%2.0f%%",
+            latestTemperature,
+            latestHumidity
+        );
+    }
+
+    snprintf(
+        secondLine,
+        sizeof(secondLine),
+        "L:%4d C:%s",
+        latestLightValue,
+        curtainAngle >= CURTAIN_OPEN_ANGLE ? "ON" : "OFF"
+    );
+
+    printLcdLine(0, firstLine);
+    printLcdLine(1, secondLine);
 }
 
 // =====================
@@ -350,7 +452,7 @@ bool sendTelemetry() {
         return false;
     }
 
-    if (!refreshSensors()) {
+    if (isnan(latestTemperature) || isnan(latestHumidity)) {
         Serial.println("[TELEMETRY] Skipped: DHT20 has no valid data yet");
         return false;
     }
@@ -505,9 +607,19 @@ void pollLatestCommand() {
         return;
     }
 
-    const int32_t commandId = doc["id"] | -1;
+    // Backend hiện tại dùng command_id/command_state. Vẫn hỗ trợ id/state
+    // để tương thích nếu API đổi sang schema rút gọn trong tương lai.
+    int32_t commandId = doc["command_id"] | -1;
+    if (commandId < 0) {
+        commandId = doc["id"] | -1;
+    }
+
     String command = doc["command"] | "";
-    String state = doc["state"] | "";
+    String state = doc["command_state"] | "";
+    if (state.isEmpty()) {
+        state = String(doc["state"] | "");
+    }
+
     String responseDeviceId = doc["device_id"] | "";
 
     command.trim();
@@ -565,7 +677,7 @@ void setup() {
     Serial.println();
     Serial.println("========================================");
     Serial.println("AWS IoT Monitoring and Control Dashboard");
-    Serial.println("YOLO UNO: Fan, Light, Curtain, DHT20");
+    Serial.println("YOLO UNO: Fan, Light, Curtain, DHT20, LCD");
     Serial.println("========================================");
 
     pinMode(PIN_FAN, OUTPUT);
@@ -583,6 +695,7 @@ void setup() {
 
     Wire.begin(I2C_SDA, I2C_SCL);
     Wire.setClock(100000);
+    initializeLcd();
     initializeDHT20();
 
     preferences.begin("iot-device", false);
@@ -599,6 +712,7 @@ void setup() {
     // Cho phép gửi telemetry và polling command ngay sau khi boot.
     lastTelemetryMs = millis() - TELEMETRY_INTERVAL_MS;
     lastCommandPollMs = millis() - COMMAND_POLL_INTERVAL_MS;
+    lastLcdUpdateMs = millis() - LCD_UPDATE_INTERVAL_MS;
 }
 
 // =====================
@@ -608,6 +722,12 @@ void loop() {
     maintainWiFi();
 
     const unsigned long now = millis();
+
+    if (now - lastLcdUpdateMs >= LCD_UPDATE_INTERVAL_MS) {
+        lastLcdUpdateMs = now;
+        refreshSensors();
+        updateLcd();
+    }
 
     if (now - lastCommandPollMs >= COMMAND_POLL_INTERVAL_MS) {
         lastCommandPollMs = now;
