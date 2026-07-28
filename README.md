@@ -45,7 +45,7 @@ The architecture includes:
 - YOLO UNO hardware sending telemetry, polling pending commands, and sending command acknowledgements.
 - Amazon CloudWatch collecting EC2 logs, EC2 metrics, and RDS metrics.
 - CloudWatch Alarms monitoring CPU, memory, disk usage, and database connections.
-```
+
 
 ### AWS services
 
@@ -59,7 +59,7 @@ The architecture includes:
 - CloudWatch Alarms
 
 The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, Cognito, CloudFront, or DynamoDB.
-```
+
 ---
 
 ## 3. Team Responsibilities
