@@ -1,33 +1,33 @@
 # AWS IoT Monitoring and Control Dashboard
 
-An IoT monitoring and control system built with FastAPI, React, PostgreSQL, YOLO UNO, and AWS services.
+Hệ thống giám sát và điều khiển thiết bị IoT sử dụng FastAPI, React, PostgreSQL, YOLO UNO và các dịch vụ AWS.
 
-[Tiếng Việt](README.vi.md)
-
----
-
-## 1. Overview
-
-This project provides an end-to-end IoT monitoring and control platform.
-
-The **YOLO UNO** device collects temperature, humidity, and light intensity data and sends telemetry to a FastAPI backend hosted on Amazon EC2. The backend stores data in Amazon RDS for PostgreSQL. A React + Vite dashboard displays the latest telemetry and historical data and allows users to remotely control a fan, light, and curtain.
-
-The hardware polls the backend for the latest pending command, executes it, and sends an acknowledgement. Amazon CloudWatch collects backend logs and monitors EC2 and RDS metrics.
-
-### Main capabilities
-
-- Collect temperature, humidity, and light intensity data.
-- Store telemetry in PostgreSQL on Amazon RDS.
-- Display latest and historical telemetry.
-- Control the fan, light, and curtain remotely.
-- Manage command states from `Pending` to `Executed`.
-- Send command acknowledgements from hardware.
-- Run the backend as a `systemd` service on EC2.
-- Monitor EC2, RDS, and backend logs with Amazon CloudWatch.
+[English](README.md)
 
 ---
 
-## 2. Architecture
+## 1. Tổng quan
+
+Project xây dựng một hệ thống giám sát và điều khiển IoT hoàn chỉnh từ thiết bị phần cứng đến giao diện người dùng.
+
+Thiết bị **YOLO UNO** thu thập nhiệt độ, độ ẩm và cường độ ánh sáng, sau đó gửi telemetry đến FastAPI backend chạy trên Amazon EC2. Backend lưu dữ liệu vào Amazon RDS for PostgreSQL. Dashboard React + Vite hiển thị dữ liệu mới nhất, dữ liệu lịch sử và cho phép người dùng điều khiển quạt, đèn và rèm từ xa.
+
+Hardware định kỳ lấy command mới nhất từ backend, thực thi command và gửi ACK xác nhận. Amazon CloudWatch được dùng để thu thập log backend và theo dõi metric của EC2 và RDS.
+
+### Chức năng chính
+
+- Thu thập nhiệt độ, độ ẩm và cường độ ánh sáng.
+- Lưu telemetry vào PostgreSQL trên Amazon RDS.
+- Hiển thị telemetry mới nhất và dữ liệu lịch sử.
+- Điều khiển quạt, đèn và rèm từ xa.
+- Quản lý trạng thái command từ `Pending` sang `Executed`.
+- Hardware gửi ACK sau khi thực hiện command.
+- Backend chạy bằng `systemd` trên EC2.
+- Theo dõi EC2, RDS và log backend bằng Amazon CloudWatch.
+
+---
+
+## 2. Kiến trúc
 
 ```text
 Dashboard User
@@ -49,7 +49,7 @@ Amazon RDS --------> Amazon CloudWatch
 Amazon CloudWatch -> CloudWatch Alarms
 ```
 
-### AWS services
+### Dịch vụ AWS
 
 - Amazon EC2
 - Amazon EBS
@@ -60,22 +60,22 @@ Amazon CloudWatch -> CloudWatch Alarms
 - Amazon CloudWatch
 - CloudWatch Alarms
 
-The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, Cognito, CloudFront, or DynamoDB.
+Project không sử dụng AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, Cognito, CloudFront hoặc DynamoDB.
 
 ---
 
-## 3. Team Responsibilities
+## 3. Phân công thành viên
 
-| Member | Responsibility |
+| Thành viên | Phụ trách |
 |---|---|
-| **Phạm Lê Minh Khôi** | AWS infrastructure, EC2 deployment, RDS, CloudWatch, Security Groups, DevOps, and YOLO UNO hardware |
-| **Thượng Đình Hưng** | React + Vite frontend and dashboard interface |
-| **Ngô Minh Thuận** | FastAPI backend, API endpoints, database integration, and command processing |
-| **Lê Bảo Khánh** | Documentation, proposal, blog posts, weekly worklog, and event reports |
+| **Phạm Lê Minh Khôi** | Hạ tầng AWS, triển khai EC2, RDS, CloudWatch, Security Groups, DevOps và phần cứng YOLO UNO |
+| **Thượng Đình Hưng** | Frontend React + Vite và giao diện dashboard |
+| **Ngô Minh Thuận** | Backend FastAPI, API endpoint, tích hợp database và xử lý command |
+| **Lê Bảo Khánh** | Documentation, proposal, blog, worklog theo tuần và báo cáo event |
 
 ---
 
-## 4. Technologies
+## 4. Công nghệ sử dụng
 
 ### Backend
 
@@ -99,10 +99,10 @@ The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, C
 - YOLO UNO / ESP32-S3
 - PlatformIO
 - Arduino framework
-- DHT20 temperature and humidity sensor
-- Analog light sensor
-- Fan module
-- Relay/light module
+- Cảm biến nhiệt độ và độ ẩm DHT20
+- Cảm biến ánh sáng analog
+- Module quạt
+- Relay/đèn
 - Servo motor
 
 ### AWS
@@ -118,7 +118,7 @@ The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, C
 
 ---
 
-## 5. Repository Structure
+## 5. Cấu trúc repository
 
 ```text
 aws-iot-dashboard/
@@ -145,20 +145,20 @@ aws-iot-dashboard/
 
 ---
 
-## 6. API Endpoints
+## 6. API endpoint
 
-| Method | Endpoint | Description |
+| Method | Endpoint | Mô tả |
 |---|---|---|
 | `GET` | `/` | Root endpoint |
-| `GET` | `/api/health` | Backend health check |
-| `POST` | `/api/telemetry` | Receive telemetry from YOLO UNO |
-| `GET` | `/api/devices/{device_id}/latest` | Get latest telemetry |
-| `GET` | `/api/devices/{device_id}/history` | Get telemetry history |
-| `POST` | `/api/devices/{device_id}/commands` | Create a device command |
-| `GET` | `/api/devices/{device_id}/commands/latest` | Get latest pending command |
-| `POST` | `/api/devices/{device_id}/commands/{command_id}/ack` | Acknowledge an executed command |
+| `GET` | `/api/health` | Kiểm tra trạng thái backend |
+| `POST` | `/api/telemetry` | Nhận telemetry từ YOLO UNO |
+| `GET` | `/api/devices/{device_id}/latest` | Lấy telemetry mới nhất |
+| `GET` | `/api/devices/{device_id}/history` | Lấy lịch sử telemetry |
+| `POST` | `/api/devices/{device_id}/commands` | Tạo command mới |
+| `GET` | `/api/devices/{device_id}/commands/latest` | Lấy command Pending mới nhất |
+| `POST` | `/api/devices/{device_id}/commands/{command_id}/ack` | Xác nhận command đã được thực thi |
 
-Supported commands:
+Command hỗ trợ:
 
 ```text
 FAN_ON
@@ -171,7 +171,7 @@ CURTAIN_CLOSE
 
 ---
 
-## 7. Telemetry Example
+## 7. Ví dụ telemetry
 
 ```json
 {
@@ -187,18 +187,18 @@ CURTAIN_CLOSE
 
 ---
 
-## 8. Initial Setup
+## 8. Hướng dẫn setup ban đầu
 
-### 8.1 Clone the repository
+### 8.1 Clone repository
 
-Run on Windows PowerShell:
+Chạy trên Windows PowerShell:
 
 ```powershell
 git clone <GITHUB_REPOSITORY_URL>
 cd aws-iot-dashboard
 ```
 
-### 8.2 Backend setup on Windows
+### 8.2 Setup backend trên Windows
 
 ```powershell
 cd backend
@@ -209,19 +209,19 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Update `backend/.env`:
+Cập nhật `backend/.env`:
 
 ```env
 DATABASE_URL=postgresql://postgres:<RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard
 ```
 
-Run locally:
+Chạy backend local:
 
 ```powershell
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-### 8.3 Frontend setup on Windows
+### 8.3 Setup frontend trên Windows
 
 ```powershell
 cd aws-iot-dashboard\frontend
@@ -229,14 +229,14 @@ npm install
 npm run dev
 ```
 
-### 8.4 Hardware setup
+### 8.4 Setup hardware
 
 ```powershell
 cd aws-iot-dashboard\hardware
 Copy-Item include\secrets.example.h include\secrets.h
 ```
 
-Update `include/secrets.h`:
+Cập nhật `include/secrets.h`:
 
 ```cpp
 #define WIFI_SSID "<YOUR_WIFI_SSID>"
@@ -245,7 +245,7 @@ Update `include/secrets.h`:
 #define DEVICE_ID "room_01"
 ```
 
-Build and upload:
+Build và upload:
 
 ```powershell
 pio run
@@ -253,17 +253,19 @@ pio run --target upload
 pio device monitor --baud 115200
 ```
 
+Không thêm dấu `/` ở cuối `API_BASE_URL`.
+
 ---
 
-## 9. EC2 Backend Setup
+## 9. Setup backend trên EC2
 
-### 9.1 Connect from Windows PowerShell
+### 9.1 Kết nối từ Windows PowerShell
 
 ```powershell
 ssh -i "$env:USERPROFILE\.ssh\iot-dashboard-key.pem" ec2-user@<EC2_PUBLIC_DNS>
 ```
 
-### 9.2 First-time setup on EC2
+### 9.2 Setup EC2 lần đầu
 
 ```bash
 sudo dnf update -y
@@ -279,19 +281,19 @@ cp .env.example .env
 nano .env
 ```
 
-Add:
+Thêm:
 
 ```env
 DATABASE_URL=postgresql://postgres:<RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard
 ```
 
-Then:
+Sau đó:
 
 ```bash
 chmod 600 .env
 ```
 
-### 9.3 Optional RDS connection test
+### 9.3 Kiểm tra kết nối RDS khi cần
 
 ```bash
 cd ~
@@ -299,21 +301,21 @@ curl -o global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global
 psql "host=<RDS_ENDPOINT> port=5432 dbname=iot_dashboard user=postgres sslmode=verify-full sslrootcert=$HOME/global-bundle.pem"
 ```
 
-Inside PostgreSQL:
+Khi đang ở PostgreSQL:
 
 ```sql
 \dt
 ```
 
-Exit:
+Thoát:
 
 ```sql
 \q
 ```
 
-A manual `psql` connection is only needed for checks and debugging. The backend connects automatically through `DATABASE_URL`.
+Không cần kết nối `psql` mỗi khi SSH vào EC2. `psql` chỉ dùng để kiểm tra hoặc debug database. Backend tự kết nối RDS thông qua `DATABASE_URL`.
 
-### 9.4 Create the systemd service
+### 9.4 Tạo systemd service
 
 ```bash
 sudo mkdir -p /var/log/aws-iot-backend
@@ -346,7 +348,7 @@ StandardError=append:/var/log/aws-iot-backend/backend-error.log
 WantedBy=multi-user.target
 ```
 
-Enable and start:
+Enable và start:
 
 ```bash
 sudo systemctl daemon-reload
@@ -355,7 +357,9 @@ sudo systemctl start aws-iot-backend
 sudo systemctl status aws-iot-backend
 ```
 
-### 9.5 Daily update commands
+Nhấn `q` để thoát màn hình status.
+
+### 9.5 Các lệnh cập nhật hằng ngày
 
 ```bash
 cd ~/aws-iot-dashboard
@@ -367,7 +371,7 @@ sudo systemctl restart aws-iot-backend
 sudo systemctl status aws-iot-backend
 ```
 
-Verify:
+Kiểm tra backend:
 
 ```bash
 curl http://127.0.0.1:8000/
@@ -375,7 +379,7 @@ curl http://127.0.0.1:8000/api/health
 curl -s http://127.0.0.1:8000/openapi.json | grep -o '/api/[^"]*' | sort -u
 ```
 
-View logs:
+Xem log:
 
 ```bash
 sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backend-error.log
@@ -383,40 +387,40 @@ sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backe
 
 ---
 
-## 10. Security Notes
+## 10. Lưu ý bảo mật
 
-- Do not commit `.env`, `.pem`, private keys, passwords, or `hardware/include/secrets.h`.
-- Allow PostgreSQL access to RDS only from the EC2 Security Group.
-- Restrict SSH access to the administrator IP.
-- Do not hard-code AWS access keys.
-- Use an EC2 IAM Role for CloudWatch Agent permissions.
-
----
-
-## 11. Testing Checklist
-
-- [ ] YOLO UNO connects to Wi-Fi.
-- [ ] YOLO UNO can reach the EC2 backend.
-- [ ] Telemetry is stored in PostgreSQL.
-- [ ] Latest and history APIs return data.
-- [ ] Frontend can create commands.
-- [ ] Hardware receives and executes commands.
-- [ ] Hardware sends command ACK.
-- [ ] Command state changes from `Pending` to `Executed`.
-- [ ] CloudWatch receives logs and metrics.
+- Không commit `.env`, `.pem`, private key, password hoặc `hardware/include/secrets.h`.
+- RDS chỉ nên cho phép PostgreSQL từ EC2 Security Group.
+- SSH chỉ nên mở cho IP quản trị.
+- Không hard-code AWS access key.
+- Dùng IAM Role cho CloudWatch Agent trên EC2.
 
 ---
 
-## 12. Documentation
+## 11. Checklist kiểm thử
 
-- Deployment guides: `docs/`
-- Architecture diagrams: `diagrams/`
-- Testing evidence: `screenshots/`
-- Proposal, blogs, worklogs, and event reports: `report/`
-- Hardware guide: `hardware/README.md`
+- [ ] YOLO UNO kết nối Wi-Fi.
+- [ ] YOLO UNO truy cập được backend EC2.
+- [ ] Telemetry được lưu vào PostgreSQL.
+- [ ] API latest và history trả dữ liệu.
+- [ ] Frontend tạo được command.
+- [ ] Hardware nhận và thực thi command.
+- [ ] Hardware gửi command ACK.
+- [ ] Command chuyển từ `Pending` sang `Executed`.
+- [ ] CloudWatch nhận logs và metrics.
+
+---
+
+## 12. Tài liệu
+
+- Hướng dẫn triển khai: `docs/`
+- Sơ đồ kiến trúc: `diagrams/`
+- Bằng chứng kiểm thử: `screenshots/`
+- Proposal, blog, worklog và báo cáo event: `report/`
+- Hướng dẫn hardware: `hardware/README.md`
 
 ---
 
 ## 13. License
 
-This repository is developed for educational and internship purposes.
+Repository được phát triển phục vụ mục đích học tập và thực tập.
