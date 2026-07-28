@@ -37,14 +37,14 @@ Hardware định kỳ lấy command mới nhất từ backend, thực thi comman
   />
 </p>
 
-The architecture includes:
+Kiến trúc hệ thống gồm:
 
-- A React + Vite frontend running outside AWS.
-- A FastAPI backend hosted on Amazon EC2.
-- Amazon RDS for PostgreSQL for telemetry and command persistence.
-- YOLO UNO hardware sending telemetry, polling pending commands, and sending command acknowledgements.
-- Amazon CloudWatch collecting EC2 logs, EC2 metrics, and RDS metrics.
-- CloudWatch Alarms monitoring CPU, memory, disk usage, and database connections.
+- Frontend React + Vite chạy bên ngoài AWS.
+- FastAPI backend được triển khai trên Amazon EC2.
+- Amazon RDS for PostgreSQL dùng để lưu telemetry và command.
+- Phần cứng YOLO UNO gửi telemetry, lấy command đang ở trạng thái Pending và gửi ACK sau khi thực thi.
+- Amazon CloudWatch thu thập log EC2, metric EC2 và metric RDS.
+- CloudWatch Alarms giám sát CPU, memory, disk usage và database connections.
 
 
 ### Dịch vụ AWS
