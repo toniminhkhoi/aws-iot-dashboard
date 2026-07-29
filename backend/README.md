@@ -1,36 +1,39 @@
 # AWS IoT Dashboard Backend
 
-FastAPI backend nhận telemetry từ thiết bị IoT, lưu dữ liệu vào PostgreSQL và
-quản lý command điều khiển theo trạng thái `Pending` → `Executed`.
+[Tiếng Việt](README.vi.md)
 
-## Công nghệ
+The FastAPI backend receives telemetry from IoT devices, stores it in
+PostgreSQL, and manages control commands through the `Pending` → `Executed`
+state transition.
+
+## Technologies
 
 - FastAPI + Uvicorn
 - SQLAlchemy
 - PostgreSQL / Amazon RDS
 - Pydantic
 
-## Cấu trúc
+## Project structure
 
 ```text
 backend/
 ├── app/
 │   ├── api/          # API routes
-│   ├── database/     # Kết nối và khởi tạo database
+│   ├── database/     # Database connection and initialization
 │   ├── models/       # SQLAlchemy models
 │   ├── schemas/      # Pydantic schemas
-│   └── services/     # Xử lý telemetry và command
+│   └── services/     # Telemetry and command processing
 ├── .env.example
 ├── main.py
 ├── requirements.txt
 └── simulator.py
 ```
 
-## Chạy local
+## Run locally
 
-Các lệnh dưới đây chạy từ thư mục `backend`.
+Run the following commands from the `backend` directory.
 
-### 1. Tạo môi trường Python
+### 1. Create the Python environment
 
 Windows PowerShell:
 
@@ -50,55 +53,84 @@ python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-### 2. Cấu hình database
+### 2. Configure the database
 
-Cập nhật `.env`:
+When using Amazon RDS, first download the CA bundle into the `backend`
+directory.
+
+Windows PowerShell:
+
+```powershell
+Invoke-WebRequest `
+  -Uri "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem" `
+  -OutFile "global-bundle.pem"
+```
+
+Linux/macOS:
+
+```bash
+curl -o global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+```
+
+Update `.env`:
 
 ```env
-DATABASE_URL=postgresql+psycopg2://postgres:PASSWORD@HOST:5432/iot_dashboard
+DATABASE_URL=postgresql+psycopg2://postgres:<URL_ENCODED_RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard?sslmode=verify-full&sslrootcert=global-bundle.pem
 DEVICE_API_KEY=demo-device-key
 ```
 
-`DATABASE_URL` là biến bắt buộc. Nếu mật khẩu chứa ký tự đặc biệt, cần
-URL-encode trước khi đưa vào connection string.
+`DATABASE_URL` is required. URL-encode the password before inserting it into
+the connection string when it contains special characters. Use only the RDS
+endpoint hostname; do not include `https://` or `:5432`.
+`sslmode=verify-full` requires TLS, verifies the CA, and checks that the
+endpoint matches the certificate.
 
-> `DEVICE_API_KEY` đã có trong cấu hình nhưng các endpoint hiện tại chưa kiểm
-> tra API key. Không nên public API trực tiếp ra Internet nếu chưa bổ sung xác
-> thực hoặc giới hạn truy cập.
+For a local PostgreSQL server without TLS, use:
 
-### 3. Tạo bảng và chạy API
+```env
+DATABASE_URL=postgresql+psycopg2://postgres:<URL_ENCODED_PASSWORD>@localhost:5432/iot_dashboard
+```
+
+`global-bundle.pem` is excluded by `.gitignore` and must not be committed.
+
+> `DEVICE_API_KEY` is present in the configuration, but the current endpoints
+> do not validate it yet. Do not expose the API directly to the Internet
+> without authentication or appropriate access restrictions.
+
+### 3. Create tables and start the API
 
 ```powershell
 python -m app.database.init_db
 python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Sau khi khởi động:
+After startup:
 
 - API: `http://localhost:8000`
 - Swagger UI: `http://localhost:8000/docs`
 - Health check: `http://localhost:8000/api/health`
 
-Khi chạy production, bỏ `--reload` và nên đặt API sau reverse proxy hoặc
-security group phù hợp.
+For production, remove `--reload` and place the API behind a reverse proxy or
+an appropriately restricted Security Group.
 
-## API chính
+## Main API endpoints
 
-| Method | Endpoint | Mô tả |
+| Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/` | Thông tin backend |
-| `GET` | `/api/health` | Kiểm tra trạng thái API |
-| `POST` | `/api/telemetry` | Nhận và lưu telemetry |
-| `GET` | `/api/devices/{device_id}/latest` | Telemetry mới nhất |
-| `GET` | `/api/devices/{device_id}/history` | Lịch sử telemetry, mới nhất trước |
-| `POST` | `/api/devices/{device_id}/commands` | Tạo command `Pending` |
-| `GET` | `/api/devices/{device_id}/commands/latest` | Lấy command `Pending` cũ nhất |
-| `POST` | `/api/devices/{device_id}/commands/{command_id}/ack` | Chuyển command thành `Executed` |
+| `GET` | `/` | Backend information |
+| `GET` | `/api/health` | API health check |
+| `POST` | `/api/telemetry` | Receive and store telemetry |
+| `GET` | `/api/devices/{device_id}/latest` | Latest telemetry |
+| `GET` | `/api/devices/{device_id}/history` | Telemetry history, newest first |
+| `POST` | `/api/devices/{device_id}/commands` | Create a `Pending` command |
+| `GET` | `/api/devices/{device_id}/commands/latest` | Get the oldest `Pending` command |
+| `POST` | `/api/devices/{device_id}/commands/{command_id}/ack` | Mark a command as `Executed` |
 
-Endpoint command trả `404` nếu thiết bị chưa tồn tại. Thiết bị được tự động tạo
-khi backend nhận telemetry đầu tiên có `deviceId` tương ứng.
+Command endpoints return `404` when the device does not exist. A device is
+created automatically when the backend receives its first telemetry payload
+with the corresponding `deviceId`.
 
-### Gửi telemetry
+### Send telemetry
 
 ```http
 POST /api/telemetry
@@ -117,7 +149,7 @@ Content-Type: application/json
 }
 ```
 
-### Tạo command
+### Create a command
 
 ```http
 POST /api/devices/room_01/commands
@@ -130,7 +162,7 @@ Content-Type: application/json
 }
 ```
 
-Các command firmware hỗ trợ:
+Commands supported by the firmware:
 
 ```text
 MODE_AUTO
@@ -143,12 +175,13 @@ CURTAIN_OPEN
 CURTAIN_CLOSE
 ```
 
-Backend lưu command dưới dạng chuỗi và không tự kiểm tra danh sách trên. Thiết
-bị chịu trách nhiệm xác nhận command hợp lệ và gửi ACK sau khi thực thi.
+The backend stores commands as strings and does not validate this list. The
+device is responsible for validating each command and sending an ACK after
+execution.
 
-## Chạy simulator
+## Run the simulator
 
-Simulator gửi telemetry và xử lý command tương tự thiết bị thật:
+The simulator sends telemetry and handles commands like a physical device:
 
 ```powershell
 python simulator.py `
@@ -157,17 +190,22 @@ python simulator.py `
   --interval 3
 ```
 
-Trên Linux/macOS, thay dấu nối dòng PowerShell bằng `\` hoặc viết lệnh trên một
-dòng. Nên luôn truyền `--base-url` để tránh sử dụng địa chỉ mặc định trong
-`simulator.py`.
+On Linux/macOS, replace PowerShell line continuations with `\`, or place the
+command on one line. Always pass `--base-url` to avoid using the default
+address in `simulator.py`.
 
-## Xử lý lỗi nhanh
+## Troubleshooting
 
-- `DATABASE_URL Field required`: chưa tạo `.env` hoặc chạy lệnh sai thư mục.
-- Lỗi kết nối PostgreSQL: kiểm tra host, port `5432`, database, tài khoản,
-  firewall và RDS Security Group.
-- `404` khi tạo command: gửi telemetry cho `deviceId` đó trước.
-- `ModuleNotFoundError`: kích hoạt virtual environment và cài lại
+- `DATABASE_URL Field required`: create `.env` and run the command from the
+  correct directory.
+- PostgreSQL connection error: check the host, port `5432`, database, account,
+  firewall, and RDS Security Group.
+- `certificate verify failed` or missing CA: check `global-bundle.pem`,
+  `sslrootcert`, and run the backend from the `backend` directory.
+- RDS connection timeout: allow TCP `5432` from the EC2 Security Group or
+  another approved source in the RDS Security Group.
+- `404` when creating a command: send telemetry for that `deviceId` first.
+- `ModuleNotFoundError`: activate the virtual environment and reinstall
   `requirements.txt`.
-- Command luôn `Pending`: thiết bị/simulator phải gọi endpoint ACK sau khi thực
-  thi.
+- A command remains `Pending`: the device or simulator must call the ACK
+  endpoint after execution.

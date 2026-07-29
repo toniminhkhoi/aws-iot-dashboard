@@ -1,55 +1,60 @@
-# Firmware YOLO UNO
+# YOLO UNO Firmware
 
-Firmware cho thiết bị phần cứng của dự án **AWS IoT Monitoring and Control
-Dashboard**. Board YOLO UNO đọc cảm biến, tự động điều khiển thiết bị và giao
-tiếp trực tiếp với FastAPI backend qua HTTP.
+[Tiếng Việt](README.vi.md)
 
-Firmware hiện tại sử dụng:
+Firmware for the hardware device in the **AWS IoT Monitoring and Control
+Dashboard** project. The YOLO UNO reads sensors, controls actuators
+automatically, and communicates directly with the FastAPI backend over HTTP.
 
-- Cảm biến nhiệt độ, độ ẩm DHT20.
-- Cảm biến ánh sáng analog.
-- Quạt hai chân điều khiển.
-- Đèn LED hoặc relay.
-- Servo đóng/mở rèm.
-- LCD 1602 giao tiếp I2C.
-- Wi-Fi để gửi telemetry, nhận lệnh và xác nhận lệnh đã thực thi.
+The current firmware uses:
 
-> Firmware không kết nối AWS IoT Core và không sử dụng MQTT. Tên dự án thể hiện
-> hệ thống triển khai trên AWS; board gọi trực tiếp FastAPI backend bằng HTTP.
+- A DHT20 temperature and humidity sensor.
+- An analog light sensor.
+- A two-pin fan controller.
+- An LED or relay.
+- A curtain servo.
+- An I2C LCD 1602.
+- Wi-Fi for telemetry, commands, and execution acknowledgements.
 
-## 1. Cấu trúc thư mục
+> The firmware does not connect to AWS IoT Core and does not use MQTT. The
+> project name refers to the AWS-hosted system; the board calls the FastAPI
+> backend directly over HTTP.
+
+## 1. Directory structure
 
 ```text
 hardware/
 ├── boards/
-│   └── yolo_uno.json         # Định nghĩa board ESP32-S3 tùy chỉnh
+│   └── yolo_uno.json         # Custom ESP32-S3 board definition
 ├── include/
-│   ├── secrets.example.h     # Mẫu cấu hình
-│   └── secrets.h             # Cấu hình local, không được commit
+│   ├── secrets.example.h     # Configuration template
+│   └── secrets.h             # Local configuration; never commit
 ├── src/
-│   └── main.cpp              # Mã nguồn firmware
+│   └── main.cpp              # Firmware source
 ├── .gitignore
 ├── platformio.ini
-└── README.md
+├── README.md
+└── README.vi.md
 ```
 
-## 2. Phần cứng và chân kết nối
+## 2. Hardware and pin connections
 
-### Bảng chân
+### Pin table
 
-| Thiết bị | Cổng YOLO UNO | Chân trong firmware | Ghi chú |
+| Device | YOLO UNO port | Firmware pin | Notes |
 |---|---|---:|---|
-| Cảm biến ánh sáng | Grove `A1-A0` | A0 / `GPIO1` | Đọc ADC, lấy trung bình 10 mẫu |
-| Quạt | Grove `D8-D7` | D8 / `GPIO17` và D7 / `GPIO10` | `GPIO17 = LOW`, `GPIO10 = HIGH` thì quạt chạy |
-| Đèn LED/relay | Grove `D4-D3` | D3 / `GPIO6` | Active HIGH |
-| Servo rèm | Grove `D6-D5` | D5 / `GPIO38` | PWM 50 Hz, xung 500–2400 µs |
-| DHT20 | Một cổng I2C | SDA / `GPIO11`, SCL / `GPIO12` | Địa chỉ `0x38` |
-| LCD 1602 I2C | Một cổng I2C | SDA / `GPIO11`, SCL / `GPIO12` | Tự dò `0x21`, `0x27`, `0x3F` |
+| Light sensor | Grove `A1-A0` | A0 / `GPIO1` | ADC reading averaged over 10 samples |
+| Fan | Grove `D8-D7` | D8 / `GPIO17` and D7 / `GPIO10` | Fan runs when `GPIO17 = LOW`, `GPIO10 = HIGH` |
+| LED/relay | Grove `D4-D3` | D3 / `GPIO6` | Active HIGH |
+| Curtain servo | Grove `D6-D5` | D5 / `GPIO38` | 50 Hz PWM, 500–2400 µs pulse |
+| DHT20 | One I2C port | SDA / `GPIO11`, SCL / `GPIO12` | Address `0x38` |
+| I2C LCD 1602 | One I2C port | SDA / `GPIO11`, SCL / `GPIO12` | Probes `0x21`, `0x27`, `0x3F` |
 
-> Chân servo trong `src/main.cpp` là `GPIO38`. Nếu phần cứng đang đấu theo một
-> sơ đồ cũ dùng chân khác, cần đấu lại hoặc sửa `PIN_SERVO` trước khi nạp.
+> The servo pin in `src/main.cpp` is `GPIO38`. If the hardware follows an older
+> wiring diagram with another pin, rewire it or update `PIN_SERVO` before
+> uploading.
 
-### Kết nối bus I2C
+### I2C bus wiring
 
 | DHT20/LCD | YOLO UNO |
 |---|---|
@@ -58,89 +63,89 @@ hardware/
 | SDA | GPIO11 |
 | SCL | GPIO12 |
 
-DHT20 và LCD dùng chung bus I2C 100 kHz, vì vậy có thể nối song song SDA, SCL,
-3V3 và GND. Các cổng I2C trên YOLO UNO cũng dùng chung hai chân này.
+The DHT20 and LCD share a 100 kHz I2C bus, so SDA, SCL, 3V3, and GND can be
+wired in parallel. The YOLO UNO I2C ports also share these pins.
 
-Nếu module LCD chỉ hoạt động ổn định ở 5V, hãy dùng bộ chuyển mức logic I2C hai
-chiều. Không để điện trở kéo lên 5V của module nối trực tiếp với GPIO ESP32-S3.
-Servo và quạt nên dùng nguồn phù hợp với dòng tải; luôn nối chung GND với board.
+If the LCD module is stable only at 5V, use a bidirectional I2C logic-level
+converter. Do not connect a module's 5V pull-up resistors directly to ESP32-S3
+GPIO pins. Use a suitable power supply for the servo and fan, and always share
+GND with the board.
 
-## 3. Chuẩn bị môi trường
+## 3. Environment setup
 
-Cần cài một trong hai lựa chọn:
+Install either:
 
-- [Visual Studio Code](https://code.visualstudio.com/) cùng extension PlatformIO
-  IDE; hoặc
-- PlatformIO Core có lệnh `pio` trong terminal.
+- [Visual Studio Code](https://code.visualstudio.com/) with the PlatformIO IDE
+  extension; or
+- PlatformIO Core with the `pio` command available in the terminal.
 
-Kiểm tra PlatformIO Core:
+Check PlatformIO Core:
 
 ```powershell
 pio --version
 ```
 
-Nếu PowerShell báo `pio` không được nhận diện, thêm thư mục chứa PlatformIO vào
-`PATH` của terminal hiện tại rồi kiểm tra lại:
+If PowerShell does not recognize `pio`, add PlatformIO to the current
+terminal's `PATH` and check again:
 
 ```powershell
 $env:Path += ";$env:USERPROFILE\.platformio\penv\Scripts"
 pio --version
 ```
 
-Thay đổi `PATH` trên chỉ có hiệu lực trong terminal hiện tại. Có thể gọi trực tiếp
-`& "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"` nếu không muốn thay đổi
-`PATH`.
+This `PATH` change applies only to the current terminal. You can instead invoke
+`& "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"` directly.
 
-`platformio.ini` sử dụng:
+`platformio.ini` defines:
 
 - Platform: `espressif32`
 - Framework: Arduino
 - Environment: `yolo_uno`
 - Monitor/upload speed: `115200`
-- Các thư viện: ArduinoJson, ESP32Servo, DHT20 và LiquidCrystal_I2C
+- Libraries: ArduinoJson, ESP32Servo, DHT20, and LiquidCrystal_I2C
 
-PlatformIO sẽ tự tải các thư viện được khai báo trong lần build đầu tiên.
+PlatformIO downloads the declared libraries during the first build.
 
-## 4. Cấu hình Wi-Fi và backend
+## 4. Configure Wi-Fi and the backend
 
-Từ thư mục `hardware`, tạo file cấu hình local:
+From the `hardware` directory, create the local configuration:
 
 ```powershell
 Copy-Item .\include\secrets.example.h .\include\secrets.h
 ```
 
-Mở `include/secrets.h` và thay các giá trị:
+Open `include/secrets.h` and replace the values:
 
 ```cpp
 #pragma once
 
-constexpr char WIFI_SSID[] = "TEN_WIFI";
-constexpr char WIFI_PASSWORD[] = "MAT_KHAU_WIFI";
-constexpr char API_BASE_URL[] = "http://DIA_CHI_BACKEND:8000";
+constexpr char WIFI_SSID[] = "WIFI_NAME";
+constexpr char WIFI_PASSWORD[] = "WIFI_PASSWORD";
+constexpr char API_BASE_URL[] = "http://BACKEND_ADDRESS:8000";
 constexpr char DEVICE_ID[] = "room_01";
 ```
 
-Ý nghĩa:
+Configuration fields:
 
-| Biến | Mô tả | Ví dụ |
+| Variable | Description | Example |
 |---|---|---|
-| `WIFI_SSID` | Tên Wi-Fi mà board sẽ kết nối | `"MyWifi"` |
-| `WIFI_PASSWORD` | Mật khẩu Wi-Fi | `"secret"` |
-| `API_BASE_URL` | URL gốc của FastAPI, không bắt buộc dấu `/` cuối | `"http://192.168.1.10:8000"` |
-| `DEVICE_ID` | ID thiết bị, phải khớp với backend/dashboard | `"room_01"` |
+| `WIFI_SSID` | Wi-Fi network used by the board | `"MyWifi"` |
+| `WIFI_PASSWORD` | Wi-Fi password | `"secret"` |
+| `API_BASE_URL` | FastAPI base URL; trailing `/` is optional | `"http://192.168.1.10:8000"` |
+| `DEVICE_ID` | Device ID; must match the backend/dashboard | `"room_01"` |
 
-Lưu ý:
+Notes:
 
-- `include/secrets.h` đã được `.gitignore` bỏ qua; không commit thông tin thật.
-- `API_BASE_URL` phải truy cập được từ mạng của board. Không dùng
-  `localhost`/`127.0.0.1` trừ khi backend thật sự chạy ngay trên board.
-- Firmware hiện dùng `HTTPClient` với URL HTTP. Nếu backend chỉ cho phép HTTPS,
-  cần bổ sung cấu hình TLS trong firmware.
-- Dấu `/` ở cuối `API_BASE_URL`, nếu có, sẽ được firmware tự loại bỏ.
+- `include/secrets.h` is excluded by `.gitignore`; never commit real values.
+- `API_BASE_URL` must be reachable from the board's network. Do not use
+  `localhost` or `127.0.0.1` unless the backend actually runs on the board.
+- The firmware currently uses `HTTPClient` with HTTP URLs. Add TLS
+  configuration to the firmware if the backend only accepts HTTPS.
+- The firmware removes a trailing `/` from `API_BASE_URL`.
 
-## 5. Build, nạp và xem log
+## 5. Build, upload, and monitor
 
-Chạy các lệnh sau trong thư mục `hardware`:
+Run these commands from the `hardware` directory:
 
 ```powershell
 pio run -e yolo_uno
@@ -148,125 +153,127 @@ pio run -e yolo_uno --target upload
 pio device monitor --baud 115200
 ```
 
-Nếu máy có nhiều cổng serial, chỉ định cổng:
+Specify the serial port when the computer has multiple ports:
 
 ```powershell
 pio run -e yolo_uno --target upload --upload-port COM5
 pio device monitor --port COM5 --baud 115200
 ```
 
-Khi khởi động thành công, Serial Monitor sẽ hiển thị trạng thái LCD, DHT20,
-Auto/Manual, command ACK, Wi-Fi, địa chỉ IP và RSSI.
+After a successful boot, Serial Monitor reports LCD, DHT20, Auto/Manual,
+command ACK, Wi-Fi, IP address, and RSSI status.
 
-## 6. Luồng hoạt động
+## 6. Runtime flow
 
-Sau khi boot, firmware thực hiện theo thứ tự:
+After boot, the firmware:
 
-1. Đặt quạt và đèn về OFF, đưa rèm về góc đóng `0°`.
-2. Khởi tạo servo, I2C, LCD và DHT20.
-3. Đọc chế độ cùng trạng thái ACK đã lưu trong bộ nhớ Preferences.
-4. Kết nối Wi-Fi.
-5. Bắt đầu đọc cảm biến, điều khiển Auto, nhận lệnh và gửi telemetry.
+1. Turns the fan and light OFF and moves the curtain to the closed `0°` angle.
+2. Initializes the servo, I2C, LCD, and DHT20.
+3. Restores the control mode and saved ACK state from Preferences.
+4. Connects to Wi-Fi.
+5. Starts sensor reads, automatic control, command polling, and telemetry.
 
-Chu kỳ mặc định:
+Default intervals:
 
-| Tác vụ | Chu kỳ |
+| Task | Interval |
 |---|---:|
-| Đọc cảm biến, điều khiển Auto và cập nhật LCD | 2 giây |
-| Hỏi backend để lấy command mới | 2 giây |
-| Gửi telemetry | 5 giây |
-| Thử kết nối lại Wi-Fi khi mất mạng | 10 giây |
-| Timeout cho một lần kết nối Wi-Fi | 20 giây |
-| Timeout HTTP | 7 giây |
+| Read sensors, apply Auto control, and update the LCD | 2 seconds |
+| Poll the backend for a new command | 2 seconds |
+| Send telemetry | 5 seconds |
+| Retry Wi-Fi after disconnection | 10 seconds |
+| Wi-Fi connection attempt timeout | 20 seconds |
+| HTTP timeout | 7 seconds |
 
-### Đọc cảm biến
+### Sensor readings
 
-- Ánh sáng là giá trị ADC thô, trung bình của 10 mẫu, không phải đơn vị lux.
-- DHT20 được kiểm tra tại địa chỉ I2C `0x38`.
-- Nếu một lần đọc DHT20 lỗi, firmware giữ lại giá trị hợp lệ gần nhất.
-- Trước khi DHT20 có ít nhất một kết quả hợp lệ, firmware không gửi telemetry
-  và không thực hiện điều khiển Auto.
+- Light intensity is a raw ADC value averaged over 10 samples, not lux.
+- The DHT20 is checked at I2C address `0x38`.
+- If a DHT20 read fails, the firmware retains the latest valid value.
+- Until the DHT20 produces at least one valid reading, the firmware neither
+  sends telemetry nor applies Auto control.
 
-### Hiển thị LCD
+### LCD display
 
-LCD tự dò lần lượt các địa chỉ `0x21`, `0x27`, `0x3F`. Không tìm thấy LCD sẽ
-không làm dừng các chức năng còn lại.
+The firmware probes LCD addresses `0x21`, `0x27`, and `0x3F`. A missing LCD
+does not stop other functions.
 
 ```text
 T:30.5C H:72%
 L:1050 C:OFF
 ```
 
-- `T`: nhiệt độ theo °C.
-- `H`: độ ẩm theo %.
-- `L`: giá trị ADC của cảm biến ánh sáng.
-- `C:ON`: rèm đang ở góc mở từ `90°`; `C:OFF`: rèm chưa ở góc mở.
+- `T`: temperature in °C.
+- `H`: humidity in percent.
+- `L`: raw light-sensor ADC value.
+- `C:ON`: curtain is at or above the `90°` open angle; `C:OFF`: it is below
+  that angle.
 
-## 7. Chế độ điều khiển
+## 7. Control modes
 
 ### Auto
 
-Firmware mặc định chạy Auto ở lần khởi động đầu tiên. Các ngưỡng trong
+The firmware defaults to Auto on its first boot. Thresholds in
 `applyAutomaticControl()`:
 
-| Thiết bị | Điều kiện ON/mở | Điều kiện OFF/đóng |
+| Device | ON/open condition | OFF/closed condition |
 |---|---|---|
-| Quạt | Nhiệt độ `>= 30°C` | Nhiệt độ `< 30°C` |
-| Đèn | Ánh sáng `< 350` | Ánh sáng `>= 350` |
-| Rèm | Ánh sáng `< 700` → mở `90°` | Ánh sáng `>= 700` → đóng `0°` |
+| Fan | Temperature `>= 30°C` | Temperature `< 30°C` |
+| Light | Light value `< 350` | Light value `>= 350` |
+| Curtain | Light value `< 700` → open to `90°` | Light value `>= 700` → close to `0°` |
 
-Các ngưỡng không có hysteresis, nên thiết bị có thể đổi trạng thái liên tục khi
-giá trị cảm biến dao động sát ngưỡng.
+The thresholds do not use hysteresis, so an actuator can toggle repeatedly when
+a sensor value fluctuates around a threshold.
 
 ### Manual
 
-Các lệnh điều khiển trực tiếp quạt, đèn hoặc rèm tự chuyển firmware sang Manual.
-Ở Manual, cảm biến và telemetry vẫn hoạt động nhưng firmware không tự thay đổi
-thiết bị chấp hành.
+Direct fan, light, or curtain commands switch the firmware to Manual. Sensor
+reads and telemetry continue, but the firmware stops changing actuators
+automatically.
 
-Chế độ Auto/Manual được lưu trong Preferences và được phục hồi sau khi reboot.
-Trạng thái quạt, đèn và góc rèm không được lưu: khi boot, quạt và đèn luôn OFF,
-rèm luôn về `0°`, sau đó Auto có thể cập nhật lại ở chu kỳ đọc cảm biến.
+The firmware stores the Auto/Manual mode in Preferences and restores it after a
+reboot. It does not store fan, light, or curtain-angle state: at boot, the fan
+and light are OFF and the curtain returns to `0°`; Auto may update them during
+the next sensor cycle.
 
-### Góc rèm
+### Curtain angles
 
 ```cpp
 constexpr int CURTAIN_CLOSE_ANGLE = 0;
 constexpr int CURTAIN_OPEN_ANGLE = 90;
 ```
 
-Điều chỉnh hai hằng số này trong `src/main.cpp` theo cơ cấu thực tế. Đảm bảo góc
-không làm servo bị kẹt hoặc kéo quá hành trình của rèm.
+Adjust these constants in `src/main.cpp` for the physical mechanism. Ensure the
+angles cannot stall the servo or pull the curtain beyond its travel.
 
-## 8. Command hỗ trợ
+## 8. Supported commands
 
-| Command | Tác dụng | Chế độ sau lệnh |
+| Command | Effect | Mode after command |
 |---|---|---|
-| `MODE_AUTO` | Bật Auto và áp dụng ngay nếu đã có dữ liệu DHT20 hợp lệ | Auto |
-| `MODE_MANUAL` | Tắt điều khiển tự động | Manual |
-| `FAN_ON` | Bật quạt | Manual |
-| `FAN_OFF` | Tắt quạt | Manual |
-| `LIGHT_ON` | Bật đèn | Manual |
-| `LIGHT_OFF` | Tắt đèn | Manual |
-| `CURTAIN_OPEN` | Mở rèm đến `90°` | Manual |
-| `CURTAIN_CLOSE` | Đóng rèm về `0°` | Manual |
+| `MODE_AUTO` | Enable Auto and apply it immediately when valid DHT20 data exists | Auto |
+| `MODE_MANUAL` | Disable automatic control | Manual |
+| `FAN_ON` | Turn the fan on | Manual |
+| `FAN_OFF` | Turn the fan off | Manual |
+| `LIGHT_ON` | Turn the light on | Manual |
+| `LIGHT_OFF` | Turn the light off | Manual |
+| `CURTAIN_OPEN` | Open the curtain to `90°` | Manual |
+| `CURTAIN_CLOSE` | Close the curtain to `0°` | Manual |
 
-Firmware bỏ khoảng trắng đầu/cuối và không phân biệt chữ hoa/chữ thường. Command
-không hỗ trợ sẽ không được thực thi và không được ACK.
+The firmware trims surrounding whitespace and matches commands without regard
+to letter case. It neither executes nor acknowledges unsupported commands.
 
-## 9. Giao tiếp FastAPI
+## 9. FastAPI communication
 
-Firmware sử dụng ba endpoint:
+The firmware uses three endpoints:
 
-| Method | Endpoint | Chu kỳ/mục đích |
+| Method | Endpoint | Interval/purpose |
 |---|---|---|
-| `POST` | `/api/telemetry` | Gửi dữ liệu mỗi 5 giây |
-| `GET` | `/api/devices/{device_id}/commands/latest` | Lấy command mỗi 2 giây |
-| `POST` | `/api/devices/{device_id}/commands/{command_id}/ack` | Xác nhận đã thực thi |
+| `POST` | `/api/telemetry` | Send data every 5 seconds |
+| `GET` | `/api/devices/{device_id}/commands/latest` | Poll every 2 seconds |
+| `POST` | `/api/devices/{device_id}/commands/{command_id}/ack` | Acknowledge execution |
 
-Mọi mã HTTP từ `200` đến `299` được xem là thành công.
+Any HTTP status from `200` through `299` is considered successful.
 
-### Telemetry gửi lên backend
+### Telemetry payload
 
 ```json
 {
@@ -280,16 +287,16 @@ Mọi mã HTTP từ `200` đến `299` được xem là thành công.
 }
 ```
 
-Trong đó:
+Where:
 
-- `lightIntensity` là ADC thô.
-- `curtain` là `true` khi góc servo lớn hơn hoặc bằng góc mở `90°`.
-- Telemetry chỉ được gửi khi Wi-Fi đang kết nối và DHT20 đã có nhiệt độ, độ ẩm
-  hợp lệ.
+- `lightIntensity` is a raw ADC value.
+- `curtain` is `true` when the servo angle is at or above the `90°` open angle.
+- Telemetry is sent only while Wi-Fi is connected and valid DHT20 temperature
+  and humidity data is available.
 
-### JSON command firmware chấp nhận
+### Accepted command JSON
 
-Schema backend hiện tại:
+Current backend schema:
 
 ```json
 {
@@ -300,16 +307,17 @@ Schema backend hiện tại:
 }
 ```
 
-Để tương thích với schema rút gọn, firmware cũng chấp nhận `id` thay cho
-`command_id` và `state` thay cho `command_state`. Nếu response có `device_id`,
-giá trị đó phải khớp `DEVICE_ID`. Nếu có state, state phải là `Pending`.
+For compatibility with a shorter schema, the firmware also accepts `id`
+instead of `command_id` and `state` instead of `command_state`. If the response
+contains `device_id`, it must match `DEVICE_ID`. If a state is present, it must
+be `Pending`.
 
-Backend có thể trả `204`, `404`, body rỗng, `null` hoặc `{}` khi không có command;
-firmware sẽ tiếp tục polling ở chu kỳ sau.
+When no command exists, the backend may return `204`, `404`, an empty body,
+`null`, or `{}`. The firmware continues polling on the next interval.
 
-### Thực thi và ACK
+### Execute and acknowledge
 
-Sau khi thực thi command hợp lệ, board gọi:
+After executing a valid command, the board calls:
 
 ```http
 POST /api/devices/room_01/commands/12/ack
@@ -318,92 +326,98 @@ Content-Type: application/json
 {}
 ```
 
-Firmware lưu `lastAckedCommandId` và `pendingAckCommandId` trong Preferences để
-hạn chế thực thi lặp khi mất mạng hoặc reboot:
+The firmware stores `lastAckedCommandId` and `pendingAckCommandId` in
+Preferences to reduce duplicate execution after network loss or reboot:
 
-- Command có ID không lớn hơn ID đã ACK sẽ bị bỏ qua.
-- Nếu thực thi xong nhưng ACK lỗi, firmware ưu tiên thử ACK lại và chưa nhận
-  command tiếp theo.
-- Pending ACK được phục hồi sau reboot.
+- A command whose ID is not greater than the acknowledged ID is ignored.
+- If execution succeeds but the ACK fails, the firmware retries the ACK before
+  accepting another command.
+- A pending ACK is restored after reboot.
 
-Vì firmware so sánh ID theo thứ tự tăng dần, backend cần cấp `command_id` tăng
-dần cho các command mà board này nhận.
+Because the firmware compares IDs in increasing order, the backend must assign
+increasing `command_id` values to commands received by this board.
 
-## 10. Xử lý sự cố
+## 10. Troubleshooting
 
-### Không build được
+### Build failure
 
-- Chạy lệnh tại đúng thư mục `hardware`.
-- Kiểm tra PlatformIO đã nhận environment bằng `pio run -e yolo_uno`.
-- Kiểm tra `include/secrets.h` đã tồn tại và không có lỗi cú pháp.
-- Đảm bảo máy có Internet trong lần đầu để PlatformIO tải platform và thư viện.
+- Run the command from the `hardware` directory.
+- Confirm that PlatformIO recognizes the environment with
+  `pio run -e yolo_uno`.
+- Check that `include/secrets.h` exists and has valid syntax.
+- Ensure Internet access is available during the first platform and library
+  download.
 
-Nếu PowerShell báo `pio: The term 'pio' is not recognized`, thêm PlatformIO vào
-`PATH` của terminal hiện tại:
+If PowerShell reports `pio: The term 'pio' is not recognized`, add PlatformIO
+to the current terminal's `PATH`:
 
 ```powershell
 $env:Path += ";$env:USERPROFILE\.platformio\penv\Scripts"
 pio run -e yolo_uno
 ```
 
-Nếu gặp `HomeDirPermissionsError`, terminal hiện tại không có quyền ghi vào thư
-mục dữ liệu mặc định của PlatformIO. Chuyển dữ liệu PlatformIO sang thư mục
-`.pio` của project (thư mục này đã được `.gitignore` bỏ qua), rồi build lại:
+If `HomeDirPermissionsError` occurs, the terminal cannot write to PlatformIO's
+default data directory. Store PlatformIO data in the project's `.pio`
+directory, which `.gitignore` already excludes:
 
 ```powershell
 $env:PLATFORMIO_CORE_DIR = Join-Path $PWD ".pio"
 pio run -e yolo_uno
 ```
 
-Nếu `pio` vẫn chưa có trong `PATH`, dùng đầy đủ đường dẫn:
+If `pio` is still absent from `PATH`, use its full path:
 
 ```powershell
 $env:PLATFORMIO_CORE_DIR = Join-Path $PWD ".pio"
 & "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe" run -e yolo_uno
 ```
 
-Hai biến môi trường trên chỉ áp dụng cho terminal hiện tại.
+These environment variables apply only to the current terminal.
 
-### Không upload được
+### Upload failure
 
-- Kiểm tra đúng cáp USB có truyền dữ liệu.
-- Xác định đúng COM port bằng `pio device list`.
-- Thử giữ nút BOOT khi bắt đầu upload nếu board không tự vào chế độ nạp.
-- Đóng Serial Monitor hoặc chương trình khác đang chiếm COM port.
+- Use a USB cable that supports data.
+- Find the correct port with `pio device list`.
+- Hold the BOOT button when upload begins if the board does not enter upload
+  mode automatically.
+- Close Serial Monitor or any program using the same serial port.
 
-### Wi-Fi không kết nối
+### Wi-Fi connection failure
 
-- Kiểm tra `WIFI_SSID` và `WIFI_PASSWORD`.
-- Đảm bảo Wi-Fi tương thích với ESP32-S3 và tín hiệu đủ mạnh.
-- Xem log `[WiFi] Connection timeout`; firmware sẽ tự thử lại mỗi 10 giây.
+- Check `WIFI_SSID` and `WIFI_PASSWORD`.
+- Ensure the Wi-Fi network is compatible with the ESP32-S3 and has adequate
+  signal strength.
+- Look for `[WiFi] Connection timeout`; the firmware retries every 10 seconds.
 
-### Board kết nối Wi-Fi nhưng không gửi được dữ liệu
+### Wi-Fi connects but telemetry fails
 
-- Kiểm tra `API_BASE_URL` từ một thiết bị khác trong cùng mạng.
-- Mở port backend, mặc định là `8000`, trên firewall/security group.
-- Kiểm tra backend đang lắng nghe trên interface có thể truy cập từ mạng.
-- Nếu log báo `DHT20 has no valid data yet`, kiểm tra dây DHT20 và địa chỉ
-  `0x38`; firmware chưa gửi telemetry khi chưa có dữ liệu DHT hợp lệ.
+- Test `API_BASE_URL` from another device on the same network.
+- Open the backend port, `8000` by default, in the firewall or Security Group.
+- Confirm that the backend listens on an interface reachable from the network.
+- If the log says `DHT20 has no valid data yet`, check DHT20 wiring and address
+  `0x38`; telemetry is withheld until valid DHT data exists.
 
-### LCD không hiển thị
+### LCD is blank
 
-- Xem log `[LCD] Device 0x21/0x27/0x3F not found`.
-- Kiểm tra SDA `GPIO11`, SCL `GPIO12`, nguồn và GND chung.
-- Chỉnh biến trở tương phản trên module LCD.
-- Nếu LCD dùng địa chỉ khác, thêm địa chỉ đó trong `initializeLcd()`.
+- Look for `[LCD] Device 0x21/0x27/0x3F not found`.
+- Check SDA `GPIO11`, SCL `GPIO12`, power, and shared GND.
+- Adjust the contrast potentiometer on the LCD module.
+- Add another address to `initializeLcd()` if the LCD uses one.
 
-### Cảm biến hoặc thiết bị hoạt động ngược
+### Sensor or actuator logic is reversed
 
-- Giá trị ánh sáng phụ thuộc loại cảm biến; quan sát log `[SENSOR]` để hiệu chỉnh
-  các ngưỡng `350` và `700`.
-- Nếu relay active LOW, cần đảo logic trong `setLight()`.
-- Nếu quạt dùng module khác, kiểm tra lại logic hai chân trong `setFan()`.
-- Nếu rèm mở/đóng ngược, đổi góc mở và đóng hoặc đảo cơ cấu servo.
+- Light values depend on the sensor type. Use `[SENSOR]` logs to tune the `350`
+  and `700` thresholds.
+- Invert the logic in `setLight()` for an active-LOW relay.
+- Check both control-pin levels in `setFan()` when using another fan module.
+- Swap the open/closed angles or reverse the servo mechanism when curtain
+  direction is incorrect.
 
-## 11. Lưu ý an toàn
+## 11. Safety notes
 
-- Không cấp tải công suất lớn trực tiếp từ GPIO.
-- Dùng relay/MOSFET/driver và diode bảo vệ phù hợp cho quạt hoặc tải cảm.
-- Kiểm tra điện áp của LCD, servo, cảm biến và mức logic trước khi nối.
-- Nguồn rời cho servo/quạt phải nối chung GND với YOLO UNO.
-- Thử servo khi chưa gắn tải để xác định hành trình an toàn trước.
+- Do not drive high-power loads directly from GPIO pins.
+- Use an appropriate relay, MOSFET, driver, and flyback diode for fans or
+  inductive loads.
+- Check LCD, servo, and sensor voltages and logic levels before wiring.
+- External servo or fan power must share GND with the YOLO UNO.
+- Test the servo without a load to establish safe travel limits first.

@@ -165,7 +165,8 @@ aws-iot-dashboard/
 │   ├── main.py                   # FastAPI application entry point
 │   ├── simulator.py              # Software device simulator
 │   ├── requirements.txt
-│   └── README.md
+│   ├── README.md
+│   └── README.vi.md
 ├── frontend/
 │   ├── public/                   # Static assets
 │   ├── src/
@@ -174,7 +175,9 @@ aws-iot-dashboard/
 │   │   ├── App.tsx               # Main dashboard
 │   │   └── main.tsx              # React entry point
 │   ├── package.json
-│   └── vite.config.ts
+│   ├── vite.config.ts
+│   ├── README.md
+│   └── README.vi.md
 ├── hardware/
 │   ├── boards/
 │   │   └── yolo_uno.json         # Custom PlatformIO board definition
@@ -184,7 +187,8 @@ aws-iot-dashboard/
 │   ├── src/
 │   │   └── main.cpp              # YOLO UNO firmware
 │   ├── platformio.ini
-│   └── README.md
+│   ├── README.md
+│   └── README.vi.md
 ├── diagrams/
 │   └── aws-iot-dashboard-architecture.png
 ├── .gitignore
@@ -258,13 +262,21 @@ py -m venv venv
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 Copy-Item .env.example .env
+Invoke-WebRequest `
+  -Uri "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem" `
+  -OutFile "global-bundle.pem"
 ```
 
 Update `backend/.env`:
 
 ```env
-DATABASE_URL=postgresql://postgres:<RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard
+DATABASE_URL=postgresql+psycopg2://postgres:<URL_ENCODED_RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard?sslmode=verify-full&sslrootcert=global-bundle.pem
 ```
+
+Use the RDS endpoint shown under **Connectivity & security**, without `https://`
+or the port. URL-encode the database password before inserting it into
+`DATABASE_URL`. A local connection also requires RDS to be reachable from the
+machine, for example through an approved Security Group rule, VPN, or tunnel.
 
 Run locally:
 
@@ -327,14 +339,19 @@ source venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 cp .env.example .env
+curl -o global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
 nano .env
 ```
 
 Add:
 
 ```env
-DATABASE_URL=postgresql://postgres:<RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard
+DATABASE_URL=postgresql+psycopg2://postgres:<URL_ENCODED_RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard?sslmode=verify-full&sslrootcert=/home/ec2-user/aws-iot-dashboard/backend/global-bundle.pem
 ```
+
+Use the exact RDS endpoint hostname, without `https://` or `:5432`. Ensure the
+RDS Security Group allows inbound TCP `5432` from the EC2 instance's Security
+Group. Do not open PostgreSQL to `0.0.0.0/0`.
 
 Then:
 
@@ -345,14 +362,17 @@ chmod 600 .env
 ### 9.3 Optional RDS connection test
 
 ```bash
-cd ~
-curl -o global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
-psql "host=<RDS_ENDPOINT> port=5432 dbname=iot_dashboard user=postgres sslmode=verify-full sslrootcert=$HOME/global-bundle.pem"
+cd ~/aws-iot-dashboard/backend
+export RDSHOST="<RDS_ENDPOINT>"
+psql "host=$RDSHOST port=5432 dbname=iot_dashboard user=postgres sslmode=verify-full sslrootcert=$PWD/global-bundle.pem"
 ```
+
+Enter the RDS password when `psql` prompts for it.
 
 Inside PostgreSQL:
 
 ```sql
+\conninfo
 \dt
 ```
 
@@ -362,7 +382,9 @@ Exit:
 \q
 ```
 
-A manual `psql` connection is only needed for checks and debugging. The backend connects automatically through `DATABASE_URL`.
+A manual `psql` connection is only needed for checks and debugging. The backend
+connects automatically through `DATABASE_URL` using TLS certificate and endpoint
+verification.
 
 ### 9.4 Create the systemd service
 
@@ -462,6 +484,8 @@ sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backe
 
 - Final workshop report: `content/5-Workshop/` in the separate submission repository
 - Architecture diagrams: `diagrams/`
+- Backend guide: `backend/README.md`
+- Frontend guide: `frontend/README.md`
 - Hardware guide: `hardware/README.md`
 
 ---

@@ -165,7 +165,8 @@ aws-iot-dashboard/
 │   ├── main.py                   # Điểm khởi chạy FastAPI
 │   ├── simulator.py              # Chương trình mô phỏng thiết bị
 │   ├── requirements.txt
-│   └── README.md
+│   ├── README.md
+│   └── README.vi.md
 ├── frontend/
 │   ├── public/                   # Tài nguyên tĩnh
 │   ├── src/
@@ -174,7 +175,9 @@ aws-iot-dashboard/
 │   │   ├── App.tsx               # Dashboard chính
 │   │   └── main.tsx              # Điểm khởi chạy React
 │   ├── package.json
-│   └── vite.config.ts
+│   ├── vite.config.ts
+│   ├── README.md
+│   └── README.vi.md
 ├── hardware/
 │   ├── boards/
 │   │   └── yolo_uno.json         # Định nghĩa board PlatformIO tùy chỉnh
@@ -184,7 +187,8 @@ aws-iot-dashboard/
 │   ├── src/
 │   │   └── main.cpp              # Firmware YOLO UNO
 │   ├── platformio.ini
-│   └── README.md
+│   ├── README.md
+│   └── README.vi.md
 ├── diagrams/
 │   └── aws-iot-dashboard-architecture.png
 ├── .gitignore
@@ -258,13 +262,21 @@ py -m venv venv
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 Copy-Item .env.example .env
+Invoke-WebRequest `
+  -Uri "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem" `
+  -OutFile "global-bundle.pem"
 ```
 
 Cập nhật `backend/.env`:
 
 ```env
-DATABASE_URL=postgresql://postgres:<RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard
+DATABASE_URL=postgresql+psycopg2://postgres:<URL_ENCODED_RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard?sslmode=verify-full&sslrootcert=global-bundle.pem
 ```
+
+Lấy endpoint tại mục **Connectivity & security** của RDS, không thêm `https://`
+hoặc port. Phải URL-encode mật khẩu database trước khi đưa vào `DATABASE_URL`.
+Để kết nối từ máy local, RDS cũng phải truy cập được từ máy đó thông qua Security
+Group phù hợp, VPN hoặc tunnel.
 
 Chạy backend local:
 
@@ -329,14 +341,19 @@ source venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 cp .env.example .env
+curl -o global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
 nano .env
 ```
 
 Thêm:
 
 ```env
-DATABASE_URL=postgresql://postgres:<RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard
+DATABASE_URL=postgresql+psycopg2://postgres:<URL_ENCODED_RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard?sslmode=verify-full&sslrootcert=/home/ec2-user/aws-iot-dashboard/backend/global-bundle.pem
 ```
+
+Chỉ dùng hostname endpoint RDS, không thêm `https://` hoặc `:5432`. Security Group
+của RDS phải cho phép TCP `5432` từ Security Group của EC2. Không mở PostgreSQL
+cho `0.0.0.0/0`.
 
 Sau đó:
 
@@ -347,14 +364,17 @@ chmod 600 .env
 ### 9.3 Kiểm tra kết nối RDS khi cần
 
 ```bash
-cd ~
-curl -o global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
-psql "host=<RDS_ENDPOINT> port=5432 dbname=iot_dashboard user=postgres sslmode=verify-full sslrootcert=$HOME/global-bundle.pem"
+cd ~/aws-iot-dashboard/backend
+export RDSHOST="<RDS_ENDPOINT>"
+psql "host=$RDSHOST port=5432 dbname=iot_dashboard user=postgres sslmode=verify-full sslrootcert=$PWD/global-bundle.pem"
 ```
+
+Nhập mật khẩu RDS khi `psql` yêu cầu.
 
 Khi đang ở PostgreSQL:
 
 ```sql
+\conninfo
 \dt
 ```
 
@@ -364,7 +384,9 @@ Thoát:
 \q
 ```
 
-Không cần kết nối `psql` mỗi khi SSH vào EC2. `psql` chỉ dùng để kiểm tra hoặc debug database. Backend tự kết nối RDS thông qua `DATABASE_URL`.
+Không cần kết nối `psql` mỗi khi SSH vào EC2. `psql` chỉ dùng để kiểm tra hoặc
+debug database. Backend tự kết nối RDS thông qua `DATABASE_URL`, có mã hóa TLS,
+xác minh chứng chỉ và endpoint.
 
 ### 9.4 Tạo systemd service
 
@@ -466,7 +488,9 @@ sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backe
 
 - Báo cáo workshop hoàn chỉnh: `content/5-Workshop/` trong repository nộp bài riêng
 - Sơ đồ kiến trúc: `diagrams/`
-- Hướng dẫn hardware: `hardware/README.md`
+- Hướng dẫn backend: `backend/README.vi.md`
+- Hướng dẫn frontend: `frontend/README.vi.md`
+- Hướng dẫn hardware: `hardware/README.vi.md`
 
 ---
 
