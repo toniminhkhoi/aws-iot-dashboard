@@ -73,6 +73,24 @@ Cần cài một trong hai lựa chọn:
   IDE; hoặc
 - PlatformIO Core có lệnh `pio` trong terminal.
 
+Kiểm tra PlatformIO Core:
+
+```powershell
+pio --version
+```
+
+Nếu PowerShell báo `pio` không được nhận diện, thêm thư mục chứa PlatformIO vào
+`PATH` của terminal hiện tại rồi kiểm tra lại:
+
+```powershell
+$env:Path += ";$env:USERPROFILE\.platformio\penv\Scripts"
+pio --version
+```
+
+Thay đổi `PATH` trên chỉ có hiệu lực trong terminal hiện tại. Có thể gọi trực tiếp
+`& "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"` nếu không muốn thay đổi
+`PATH`.
+
 `platformio.ini` sử dụng:
 
 - Platform: `espressif32`
@@ -125,15 +143,15 @@ Lưu ý:
 Chạy các lệnh sau trong thư mục `hardware`:
 
 ```powershell
-pio run
-pio run --target upload
+pio run -e yolo_uno
+pio run -e yolo_uno --target upload
 pio device monitor --baud 115200
 ```
 
 Nếu máy có nhiều cổng serial, chỉ định cổng:
 
 ```powershell
-pio run --target upload --upload-port COM5
+pio run -e yolo_uno --target upload --upload-port COM5
 pio device monitor --port COM5 --baud 115200
 ```
 
@@ -319,6 +337,32 @@ dần cho các command mà board này nhận.
 - Kiểm tra PlatformIO đã nhận environment bằng `pio run -e yolo_uno`.
 - Kiểm tra `include/secrets.h` đã tồn tại và không có lỗi cú pháp.
 - Đảm bảo máy có Internet trong lần đầu để PlatformIO tải platform và thư viện.
+
+Nếu PowerShell báo `pio: The term 'pio' is not recognized`, thêm PlatformIO vào
+`PATH` của terminal hiện tại:
+
+```powershell
+$env:Path += ";$env:USERPROFILE\.platformio\penv\Scripts"
+pio run -e yolo_uno
+```
+
+Nếu gặp `HomeDirPermissionsError`, terminal hiện tại không có quyền ghi vào thư
+mục dữ liệu mặc định của PlatformIO. Chuyển dữ liệu PlatformIO sang thư mục
+`.pio` của project (thư mục này đã được `.gitignore` bỏ qua), rồi build lại:
+
+```powershell
+$env:PLATFORMIO_CORE_DIR = Join-Path $PWD ".pio"
+pio run -e yolo_uno
+```
+
+Nếu `pio` vẫn chưa có trong `PATH`, dùng đầy đủ đường dẫn:
+
+```powershell
+$env:PLATFORMIO_CORE_DIR = Join-Path $PWD ".pio"
+& "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe" run -e yolo_uno
+```
+
+Hai biến môi trường trên chỉ áp dụng cho terminal hiện tại.
 
 ### Không upload được
 
