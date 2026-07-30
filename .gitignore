@@ -225,3 +225,16 @@ __pycache__/
 node_modules/
 dist/
 .vscode/
+
+# Project secrets and generated files
+.env.*
+!.env.example
+
+**/secrets.h
+!**/secrets.example.h
+
+*.key
+*.p12
+*.pfx
+
+.pio/

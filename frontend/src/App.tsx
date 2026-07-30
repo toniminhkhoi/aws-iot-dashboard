@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
 import { 
   Activity, Cpu, ShieldCheck, Thermometer, Droplets, Sun, 
   Fan, Lightbulb, AlignJustify, Radio, Zap, ArrowRight, CheckCircle2,
-  Sparkles, AlertTriangle, Check, Clock, CloudRain, Flame
+  Sparkles, Check, Clock, CloudRain, Flame
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { getSafeTelemetry, getSafeHistory, sendSafeCommand } from './services/iotEngine';
@@ -260,8 +260,6 @@ export default function App() {
   const humidVal = data?.humidity ?? "N/A";
   const lightVal = data?.light_intensity ?? "N/A";
   const isTempAlert = typeof tempVal === 'number' && tempVal > 31;
-  const formattedTime = data?.timestamp ? new Date(data.timestamp).toLocaleTimeString('vi-VN') : 'Chưa có dữ liệu';
-
   // Cấu hình Entrance Animation (Đã fix lỗi TypeScript bằng 'as const')
   const fadeInUp = {
     initial: { opacity: 0, y: 50 },
@@ -574,7 +572,6 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {aiRecs.map((rec, index) => {
                 const Icon = rec.icon;
-                const isNormal = rec.status === 'normal';
                 const isAlert = rec.status === 'alert' || rec.status === 'warning';
                 
                 return (

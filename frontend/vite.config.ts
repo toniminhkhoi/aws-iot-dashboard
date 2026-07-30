@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://47.129.13.52:8000', // <-- Trỏ về Backend Local
+        target: 'http://iot-backend-alb-396746752.ap-southeast-1.elb.amazonaws.com',
         changeOrigin: true,
         secure: false,
       },
