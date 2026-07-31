@@ -10,9 +10,17 @@ An IoT monitoring and control system built with FastAPI, React, PostgreSQL, YOLO
 
 This project provides an end-to-end IoT monitoring and control platform.
 
-The **YOLO UNO** device collects temperature, humidity, and light intensity data and sends telemetry to a FastAPI backend hosted on Amazon EC2. The backend stores data in Amazon RDS for PostgreSQL. A React + Vite dashboard displays the latest telemetry and historical data and allows users to remotely control a fan, light, and curtain.
+The **YOLO UNO** device collects temperature, humidity, and light intensity
+data and sends telemetry over HTTP to an Application Load Balancer (ALB). The
+ALB distributes requests to FastAPI backend instances in an Auto Scaling group
+spanning two Availability Zones. The backend stores telemetry and commands in
+an Amazon RDS for PostgreSQL Multi-AZ database.
 
-The hardware polls the backend for the latest pending command, executes it, and sends an acknowledgement. Amazon CloudWatch collects backend logs and monitors EC2 and RDS metrics.
+The production React + Vite build is hosted in Amazon S3 and delivered through
+Amazon CloudFront, protected by AWS WAF. CloudFront serves the static dashboard
+from S3 and routes `/api/*` requests to the backend ALB. The hardware also
+polls the ALB for pending commands, executes them, and sends acknowledgements.
+Amazon CloudWatch collects backend logs and infrastructure metrics.
 
 ### Main capabilities
 
@@ -22,8 +30,13 @@ The hardware polls the backend for the latest pending command, executes it, and 
 - Control the fan, light, and curtain remotely.
 - Manage command states from `Pending` to `Executed`.
 - Send command acknowledgements from hardware.
-- Run the backend as a `systemd` service on EC2.
-- Monitor EC2, RDS, and backend logs with Amazon CloudWatch.
+- Deliver the static frontend globally with S3, CloudFront, and AWS WAF.
+- Distribute API traffic through an Application Load Balancer.
+- Scale and replace backend instances with an Auto Scaling group and backend AMI.
+- Use RDS PostgreSQL Multi-AZ with synchronous replication and automatic failover.
+- Encrypt supported storage with an AWS managed KMS key.
+- Retain RDS backups for seven days.
+- Monitor backend logs and infrastructure metrics with Amazon CloudWatch.
 
 ---
 
@@ -37,28 +50,46 @@ The hardware polls the backend for the latest pending command, executes it, and 
   />
 </p>
 
-The architecture includes:
+The system is deployed in the AWS Singapore Region (`ap-southeast-1`):
 
-- A React + Vite frontend running outside AWS.
-- A FastAPI backend hosted on Amazon EC2.
-- Amazon RDS for PostgreSQL for telemetry and command persistence.
-- YOLO UNO hardware sending telemetry, polling pending commands, and sending command acknowledgements.
-- Amazon CloudWatch collecting EC2 logs, EC2 metrics, and RDS metrics.
-- CloudWatch Alarms monitoring CPU, memory, disk usage, and database connections.
+1. A web user connects over HTTPS through AWS WAF to CloudFront.
+2. CloudFront's default behavior serves the React + Vite static build from the
+   frontend S3 bucket.
+3. CloudFront forwards `/api/*` requests to the IoT backend ALB.
+4. YOLO UNO communicates with the same ALB directly over HTTP.
+5. The ALB performs health checks and accepts application traffic.
+6. Its target group forwards HTTP traffic on port `8000` to FastAPI instances
+   in an Auto Scaling group across public subnets in `ap-southeast-1a` and
+   `ap-southeast-1c`.
+7. Backend instances use the RDS endpoint over TCP `5432`.
+8. Amazon RDS for PostgreSQL runs the primary database in a private subnet in
+   `ap-southeast-1c` and the standby database in `ap-southeast-1b`.
+9. RDS synchronously replicates to the standby and provides automatic failover.
+
+Backend instances are created from a backend AMI and use EBS volumes. IAM
+roles provide workload permissions, CloudWatch receives logs and metrics, an
+AWS managed KMS key protects supported encrypted resources, and database
+backups are retained for seven days.
 
 
 ### AWS services
 
-- Amazon EC2
+- Amazon S3
+- Amazon CloudFront
+- AWS WAF
+- Elastic Load Balancing — Application Load Balancer
+- Amazon EC2 Auto Scaling
+- Amazon EC2 and Amazon Machine Images
 - Amazon EBS
-- Amazon RDS for PostgreSQL
-- Amazon VPC
-- Security Groups
-- AWS IAM Role
+- Amazon RDS for PostgreSQL Multi-AZ
+- Amazon VPC, public/private subnets, and Security Groups
+- AWS Identity and Access Management (IAM)
 - Amazon CloudWatch
-- CloudWatch Alarms
+- AWS Key Management Service (AWS KMS)
+- RDS automated backups
 
-The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, Cognito, CloudFront, or DynamoDB.
+The project does not use AWS IoT Core, Lambda, API Gateway, SNS, ECS, ECR,
+Cognito, or DynamoDB.
 
 ---
 
@@ -105,14 +136,21 @@ The project does not use AWS IoT Core, Lambda, API Gateway, S3, SNS, ECS, ECR, C
 
 ### AWS
 
+- Amazon S3
+- Amazon CloudFront
+- AWS WAF
+- Application Load Balancer
+- Amazon EC2 Auto Scaling
 - Amazon EC2
+- Amazon Machine Images
 - Amazon EBS
-- Amazon RDS for PostgreSQL
+- Amazon RDS for PostgreSQL Multi-AZ
 - Amazon VPC
 - Security Groups
 - AWS IAM Role
 - Amazon CloudWatch
-- CloudWatch Alarms
+- AWS KMS
+- RDS automated backups
 
 ---
 
@@ -292,6 +330,23 @@ npm install
 npm run dev
 ```
 
+For production, build the frontend, upload `dist/` to the frontend S3 bucket,
+and invalidate the CloudFront cache:
+
+```powershell
+npm run build
+aws s3 sync dist "s3://<FRONTEND_BUCKET>" --delete
+aws cloudfront create-invalidation `
+  --distribution-id "<CLOUDFRONT_DISTRIBUTION_ID>" `
+  --paths "/*"
+```
+
+Configure the CloudFront distribution with the S3 bucket as the default origin
+and the ALB as a second origin. Route `/api/*` to the ALB, disable caching for
+that behavior, allow the required HTTP methods, and attach the WAF web ACL to
+the distribution. Keep the S3 bucket private and grant access only through
+CloudFront Origin Access Control.
+
 ### 8.4 Hardware setup
 
 ```powershell
@@ -304,9 +359,13 @@ Update `include/secrets.h`:
 ```cpp
 #define WIFI_SSID "<YOUR_WIFI_SSID>"
 #define WIFI_PASSWORD "<YOUR_WIFI_PASSWORD>"
-#define API_BASE_URL "http://<EC2_PUBLIC_IP>:8000"
+#define API_BASE_URL "http://<ALB_DNS_NAME>"
 #define DEVICE_ID "room_01"
 ```
+
+The ALB listener accepts HTTP traffic and forwards it to the backend target
+group on port `8000`. Do not append `/api` to `API_BASE_URL`; the firmware adds
+the endpoint paths itself.
 
 Build and upload:
 
@@ -318,7 +377,11 @@ pio device monitor --baud 115200
 
 ---
 
-## 9. EC2 Backend Setup
+## 9. Production Backend Deployment
+
+The commands below prepare a backend instance for the AMI used by the Auto
+Scaling group. Do not treat the preparation instance as the only production
+server.
 
 ### 9.1 Connect from Windows PowerShell
 
@@ -326,7 +389,7 @@ pio device monitor --baud 115200
 ssh -i "$env:USERPROFILE\.ssh\iot-dashboard-key.pem" ec2-user@<EC2_PUBLIC_DNS>
 ```
 
-### 9.2 First-time setup on EC2
+### 9.2 Prepare the backend instance
 
 ```bash
 sudo dnf update -y
@@ -350,8 +413,8 @@ DATABASE_URL=postgresql+psycopg2://postgres:<URL_ENCODED_RDS_PASSWORD>@<RDS_ENDP
 ```
 
 Use the exact RDS endpoint hostname, without `https://` or `:5432`. Ensure the
-RDS Security Group allows inbound TCP `5432` from the EC2 instance's Security
-Group. Do not open PostgreSQL to `0.0.0.0/0`.
+RDS Security Group allows inbound TCP `5432` from the backend instances'
+Security Group. Do not open PostgreSQL to `0.0.0.0/0`.
 
 Then:
 
@@ -428,19 +491,36 @@ sudo systemctl start aws-iot-backend
 sudo systemctl status aws-iot-backend
 ```
 
-### 9.5 Daily update commands
+### 9.5 Create the AMI, target group, ALB, and Auto Scaling group
 
-```bash
-cd ~/aws-iot-dashboard
-git pull origin main
-cd backend
-source venv/bin/activate
-pip install -r requirements.txt
-sudo systemctl restart aws-iot-backend
-sudo systemctl status aws-iot-backend
-```
+1. Stop the backend preparation instance and create a versioned backend AMI.
+2. Create a launch template that uses the AMI, the backend instance Security
+   Group, an IAM instance profile, and encrypted EBS volumes.
+3. Create a target group using HTTP port `8000` and health check path
+   `/api/health`.
+4. Create an internet-facing ALB spanning the public subnets in
+   `ap-southeast-1a` and `ap-southeast-1c`. Configure its listener to forward
+   to the target group.
+5. Create an Auto Scaling group from the launch template in both public
+   subnets, attach the target group, enable ELB health checks, and set the
+   required minimum, desired, and maximum capacity.
+6. Wait until all instances pass both EC2 and target-group health checks.
+7. Configure CloudFront's `/api/*` behavior to use the ALB origin.
 
-Verify:
+The ALB Security Group should accept only the intended application traffic.
+The backend instance Security Group should allow TCP `8000` from the ALB
+Security Group. If YOLO UNO calls the ALB over HTTP as shown in the diagram,
+keep an HTTP listener; use HTTPS and device-side TLS when that is supported by
+the firmware.
+
+### 9.6 Deploy backend updates
+
+Build a new versioned AMI after applying and testing backend changes. Update
+the launch template to a new version, point the Auto Scaling group at that
+version, and start an instance refresh. This preserves the multi-instance
+deployment and avoids updating instances manually in place.
+
+Verify an instance locally:
 
 ```bash
 curl http://127.0.0.1:8000/
@@ -454,29 +534,46 @@ View logs:
 sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backend-error.log
 ```
 
+Verify through the load balancer:
+
+```bash
+curl http://<ALB_DNS_NAME>/api/health
+```
+
 ---
 
 ## 10. Security Notes
 
 - Do not commit `.env`, `.pem`, private keys, passwords, or `hardware/include/secrets.h`.
-- Allow PostgreSQL access to RDS only from the EC2 Security Group.
+- Keep the frontend S3 bucket private and use CloudFront Origin Access Control.
+- Attach the WAF web ACL to CloudFront and tune managed/rate-based rules.
+- Allow backend port `8000` only from the ALB Security Group.
+- Allow PostgreSQL port `5432` only from the backend instance Security Group.
 - Restrict SSH access to the administrator IP.
 - Do not hard-code AWS access keys.
-- Use an EC2 IAM Role for CloudWatch Agent permissions.
+- Use an EC2 IAM Role for CloudWatch and other required AWS permissions.
+- Encrypt EBS and RDS storage with KMS and retain RDS backups for seven days.
 
 ---
 
 ## 11. Testing Checklist
 
 - [x] YOLO UNO connects to Wi-Fi.
-- [x] YOLO UNO can reach the EC2 backend.
+- [x] CloudFront serves the frontend from the private S3 bucket.
+- [x] WAF protects the CloudFront distribution.
+- [x] CloudFront routes `/api/*` to the backend ALB.
+- [x] YOLO UNO can reach the backend ALB.
+- [x] ALB health checks pass for instances in both Availability Zones.
+- [x] Auto Scaling replaces an unhealthy backend instance.
 - [x] Telemetry is stored in PostgreSQL.
 - [x] Latest and history APIs return data.
 - [x] Frontend can create commands.
 - [x] Hardware receives and executes commands.
 - [x] Hardware sends command ACK.
 - [x] Command state changes from `Pending` to `Executed`.
-- [x] CloudWatch receives logs and metrics.
+- [x] RDS Multi-AZ replication and failover are configured.
+- [x] RDS backups are retained for seven days.
+- [x] CloudWatch receives backend logs and infrastructure metrics.
 
 ---
 

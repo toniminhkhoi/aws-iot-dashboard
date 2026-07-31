@@ -37,7 +37,7 @@ proxy: {
 },
 ```
 
-Thay `<BACKEND_HOST>` bằng địa chỉ backend local hoặc EC2 có thể truy cập được.
+Thay `<BACKEND_HOST>` bằng địa chỉ backend local hoặc DNS name của backend ALB.
 Không commit thông tin xác thực hoặc secret vào source frontend.
 
 ## 4. Chạy development
@@ -58,7 +58,24 @@ npm run preview
 
 Output production được tạo trong thư mục `dist/`.
 
-## 6. Các script
+## 6. Triển khai lên S3 và CloudFront
+
+Upload bản build production lên frontend S3 bucket ở chế độ private rồi xóa
+cache CloudFront:
+
+```powershell
+aws s3 sync dist "s3://<FRONTEND_BUCKET>" --delete
+aws cloudfront create-invalidation `
+  --distribution-id "<CLOUDFRONT_DISTRIBUTION_ID>" `
+  --paths "/*"
+```
+
+Dùng S3 bucket làm default origin của CloudFront thông qua Origin Access
+Control. Dùng Application Load Balancer làm origin thứ hai và chuyển `/api/*`
+đến origin này, tắt cache và cho phép các HTTP method cần thiết. Gắn WAF web
+ACL vào CloudFront distribution.
+
+## 7. Các script
 
 | Lệnh | Mô tả |
 |---|---|

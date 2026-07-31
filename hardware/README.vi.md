@@ -4,7 +4,7 @@
 
 Firmware cho thiết bị phần cứng của dự án **AWS IoT Monitoring and Control
 Dashboard**. Board YOLO UNO đọc cảm biến, tự động điều khiển thiết bị và giao
-tiếp trực tiếp với FastAPI backend qua HTTP.
+tiếp qua HTTP với FastAPI backend thông qua Application Load Balancer.
 
 Firmware hiện tại sử dụng:
 
@@ -17,7 +17,7 @@ Firmware hiện tại sử dụng:
 - Wi-Fi để gửi telemetry, nhận lệnh và xác nhận lệnh đã thực thi.
 
 > Firmware không kết nối AWS IoT Core và không sử dụng MQTT. Tên dự án thể hiện
-> hệ thống triển khai trên AWS; board gọi trực tiếp FastAPI backend bằng HTTP.
+> hệ thống triển khai trên AWS; board gọi trực tiếp backend ALB bằng HTTP.
 
 ## 1. Cấu trúc thư mục
 
@@ -119,7 +119,7 @@ Mở `include/secrets.h` và thay các giá trị:
 
 constexpr char WIFI_SSID[] = "TEN_WIFI";
 constexpr char WIFI_PASSWORD[] = "MAT_KHAU_WIFI";
-constexpr char API_BASE_URL[] = "http://DIA_CHI_BACKEND:8000";
+constexpr char API_BASE_URL[] = "http://ALB_DNS_NAME";
 constexpr char DEVICE_ID[] = "room_01";
 ```
 
@@ -129,7 +129,7 @@ constexpr char DEVICE_ID[] = "room_01";
 |---|---|---|
 | `WIFI_SSID` | Tên Wi-Fi mà board sẽ kết nối | `"MyWifi"` |
 | `WIFI_PASSWORD` | Mật khẩu Wi-Fi | `"secret"` |
-| `API_BASE_URL` | URL gốc của FastAPI, không bắt buộc dấu `/` cuối | `"http://192.168.1.10:8000"` |
+| `API_BASE_URL` | URL gốc của ALB, không bắt buộc dấu `/` cuối | `"http://my-alb.ap-southeast-1.elb.amazonaws.com"` |
 | `DEVICE_ID` | ID thiết bị, phải khớp với backend/dashboard | `"room_01"` |
 
 Lưu ý:
@@ -137,6 +137,7 @@ Lưu ý:
 - `include/secrets.h` đã được `.gitignore` bỏ qua; không commit thông tin thật.
 - `API_BASE_URL` phải truy cập được từ mạng của board. Không dùng
   `localhost`/`127.0.0.1` trừ khi backend thật sự chạy ngay trên board.
+- Không thêm `/api`; firmware tự nối path của từng API endpoint.
 - Firmware hiện dùng `HTTPClient` với URL HTTP. Nếu backend chỉ cho phép HTTPS,
   cần bổ sung cấu hình TLS trong firmware.
 - Dấu `/` ở cuối `API_BASE_URL`, nếu có, sẽ được firmware tự loại bỏ.
@@ -383,8 +384,9 @@ Hai biến môi trường trên chỉ áp dụng cho terminal hiện tại.
 ### Board kết nối Wi-Fi nhưng không gửi được dữ liệu
 
 - Kiểm tra `API_BASE_URL` từ một thiết bị khác trong cùng mạng.
-- Mở port backend, mặc định là `8000`, trên firewall/security group.
-- Kiểm tra backend đang lắng nghe trên interface có thể truy cập từ mạng.
+- Xác nhận ALB listener có thể truy cập được và target group đang healthy.
+- Xác nhận Security Group của backend cho phép port `8000` từ Security Group
+  của ALB.
 - Nếu log báo `DHT20 has no valid data yet`, kiểm tra dây DHT20 và địa chỉ
   `0x38`; firmware chưa gửi telemetry khi chưa có dữ liệu DHT hợp lệ.
 

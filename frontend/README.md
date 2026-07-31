@@ -39,8 +39,8 @@ proxy: {
 },
 ```
 
-Replace `<BACKEND_HOST>` with a reachable local or EC2 backend address. Do not
-commit credentials or secrets to the frontend source.
+Replace `<BACKEND_HOST>` with a reachable local backend or the backend ALB DNS
+name. Do not commit credentials or secrets to the frontend source.
 
 ## 4. Run the development server
 
@@ -60,7 +60,24 @@ npm run preview
 
 The production output is written to `dist/`.
 
-## 6. Scripts
+## 6. Deploy to S3 and CloudFront
+
+Upload the production build to the private frontend S3 bucket and invalidate
+the CloudFront cache:
+
+```powershell
+aws s3 sync dist "s3://<FRONTEND_BUCKET>" --delete
+aws cloudfront create-invalidation `
+  --distribution-id "<CLOUDFRONT_DISTRIBUTION_ID>" `
+  --paths "/*"
+```
+
+Use the S3 bucket as CloudFront's default origin through Origin Access Control.
+Use the Application Load Balancer as a second origin and route `/api/*` to it
+with caching disabled and all required HTTP methods allowed. Attach the WAF web
+ACL to the CloudFront distribution.
+
+## 7. Scripts
 
 | Command | Description |
 |---|---|

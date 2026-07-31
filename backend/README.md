@@ -6,6 +6,11 @@ The FastAPI backend receives telemetry from IoT devices, stores it in
 PostgreSQL, and manages control commands through the `Pending` → `Executed`
 state transition.
 
+In production, an Application Load Balancer forwards HTTP traffic on port
+`8000` to backend instances in an Auto Scaling group across two Availability
+Zones. The instances connect to Amazon RDS for PostgreSQL Multi-AZ through the
+RDS endpoint on TCP `5432`.
+
 ## Technologies
 
 - FastAPI + Uvicorn
@@ -110,8 +115,10 @@ After startup:
 - Swagger UI: `http://localhost:8000/docs`
 - Health check: `http://localhost:8000/api/health`
 
-For production, remove `--reload` and place the API behind a reverse proxy or
-an appropriately restricted Security Group.
+For production, remove `--reload`. Create a backend AMI with the service
+enabled, then deploy it through the launch template and Auto Scaling group
+behind the Application Load Balancer. See the root
+[deployment guide](../README.md#9-production-backend-deployment).
 
 ## Main API endpoints
 
@@ -202,8 +209,8 @@ address in `simulator.py`.
   firewall, and RDS Security Group.
 - `certificate verify failed` or missing CA: check `global-bundle.pem`,
   `sslrootcert`, and run the backend from the `backend` directory.
-- RDS connection timeout: allow TCP `5432` from the EC2 Security Group or
-  another approved source in the RDS Security Group.
+- RDS connection timeout: allow TCP `5432` from the backend instance Security
+  Group or another approved source in the RDS Security Group.
 - `404` when creating a command: send telemetry for that `deviceId` first.
 - `ModuleNotFoundError`: activate the virtual environment and reinstall
   `requirements.txt`.

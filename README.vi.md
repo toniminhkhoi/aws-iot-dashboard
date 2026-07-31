@@ -10,9 +10,17 @@ Hệ thống giám sát và điều khiển thiết bị IoT sử dụng FastAPI
 
 Project xây dựng một hệ thống giám sát và điều khiển IoT hoàn chỉnh từ thiết bị phần cứng đến giao diện người dùng.
 
-Thiết bị **YOLO UNO** thu thập nhiệt độ, độ ẩm và cường độ ánh sáng, sau đó gửi telemetry đến FastAPI backend chạy trên Amazon EC2. Backend lưu dữ liệu vào Amazon RDS for PostgreSQL. Dashboard React + Vite hiển thị dữ liệu mới nhất, dữ liệu lịch sử và cho phép người dùng điều khiển quạt, đèn và rèm từ xa.
+Thiết bị **YOLO UNO** thu thập nhiệt độ, độ ẩm và cường độ ánh sáng, sau đó gửi
+telemetry qua HTTP đến Application Load Balancer (ALB). ALB phân phối request
+đến các FastAPI backend instance trong Auto Scaling group hoạt động trên hai
+Availability Zone. Backend lưu telemetry và command trong Amazon RDS for
+PostgreSQL Multi-AZ.
 
-Hardware định kỳ lấy command mới nhất từ backend, thực thi command và gửi ACK xác nhận. Amazon CloudWatch được dùng để thu thập log backend và theo dõi metric của EC2 và RDS.
+Bản build production của React + Vite được lưu trên Amazon S3 và phân phối qua
+Amazon CloudFront, có AWS WAF bảo vệ. CloudFront phục vụ dashboard tĩnh từ S3
+và chuyển các request `/api/*` đến backend ALB. Hardware cũng định kỳ lấy
+command đang chờ từ ALB, thực thi và gửi ACK xác nhận. Amazon CloudWatch thu
+thập log backend và metric hạ tầng.
 
 ### Chức năng chính
 
@@ -22,8 +30,13 @@ Hardware định kỳ lấy command mới nhất từ backend, thực thi comman
 - Điều khiển quạt, đèn và rèm từ xa.
 - Quản lý trạng thái command từ `Pending` sang `Executed`.
 - Hardware gửi ACK sau khi thực hiện command.
-- Backend chạy bằng `systemd` trên EC2.
-- Theo dõi EC2, RDS và log backend bằng Amazon CloudWatch.
+- Phân phối frontend tĩnh trên toàn cầu bằng S3, CloudFront và AWS WAF.
+- Phân phối lưu lượng API qua Application Load Balancer.
+- Tự động scale và thay thế backend instance bằng Auto Scaling group và backend AMI.
+- Sử dụng RDS PostgreSQL Multi-AZ với đồng bộ dữ liệu và tự động failover.
+- Mã hóa các tài nguyên lưu trữ được hỗ trợ bằng AWS managed KMS key.
+- Lưu backup RDS trong 7 ngày.
+- Theo dõi log backend và metric hạ tầng bằng Amazon CloudWatch.
 
 ---
 
@@ -37,26 +50,42 @@ Hardware định kỳ lấy command mới nhất từ backend, thực thi comman
   />
 </p>
 
-Kiến trúc hệ thống gồm:
+Hệ thống được triển khai tại AWS Region Singapore (`ap-southeast-1`):
 
-- Frontend React + Vite chạy bên ngoài AWS.
-- FastAPI backend được triển khai trên Amazon EC2.
-- Amazon RDS for PostgreSQL dùng để lưu telemetry và command.
-- Phần cứng YOLO UNO gửi telemetry, lấy command đang ở trạng thái Pending và gửi ACK sau khi thực thi.
-- Amazon CloudWatch thu thập log EC2, metric EC2 và metric RDS.
-- CloudWatch Alarms giám sát CPU, memory, disk usage và database connections.
+1. Web user kết nối qua HTTPS, đi qua AWS WAF đến CloudFront.
+2. Default behavior của CloudFront phục vụ bản build tĩnh React + Vite từ
+   frontend S3 bucket.
+3. CloudFront chuyển các request `/api/*` đến IoT backend ALB.
+4. YOLO UNO giao tiếp trực tiếp với cùng ALB qua HTTP.
+5. ALB thực hiện health check và tiếp nhận lưu lượng ứng dụng.
+6. Target group chuyển tiếp HTTP trên port `8000` đến các FastAPI instance
+   thuộc Auto Scaling group trong public subnet tại `ap-southeast-1a` và
+   `ap-southeast-1c`.
+7. Backend instance kết nối đến RDS endpoint qua TCP `5432`.
+8. Amazon RDS for PostgreSQL chạy primary database trong private subnet tại
+   `ap-southeast-1c` và standby database tại `ap-southeast-1b`.
+9. RDS đồng bộ dữ liệu sang standby và hỗ trợ tự động failover.
+
+Backend instance được tạo từ backend AMI và sử dụng EBS volume. IAM role cấp
+quyền cho workload, CloudWatch nhận log và metric, AWS managed KMS key bảo vệ
+các tài nguyên được mã hóa, và backup database được lưu trong 7 ngày.
 
 
 ### Dịch vụ AWS
 
-- Amazon EC2
+- Amazon S3
+- Amazon CloudFront
+- AWS WAF
+- Elastic Load Balancing — Application Load Balancer
+- Amazon EC2 Auto Scaling
+- Amazon EC2 và Amazon Machine Images
 - Amazon EBS
-- Amazon RDS for PostgreSQL
-- Amazon VPC
-- Security Groups
-- AWS IAM Role
+- Amazon RDS for PostgreSQL Multi-AZ
+- Amazon VPC, public/private subnet và Security Group
+- AWS Identity and Access Management (IAM)
 - Amazon CloudWatch
-- CloudWatch Alarms
+- AWS Key Management Service (AWS KMS)
+- RDS automated backup
 
 
 ---
@@ -105,14 +134,21 @@ Kiến trúc hệ thống gồm:
 
 ### AWS
 
+- Amazon S3
+- Amazon CloudFront
+- AWS WAF
+- Application Load Balancer
+- Amazon EC2 Auto Scaling
 - Amazon EC2
+- Amazon Machine Images
 - Amazon EBS
-- Amazon RDS for PostgreSQL
+- Amazon RDS for PostgreSQL Multi-AZ
 - Amazon VPC
 - Security Groups
 - AWS IAM Role
 - Amazon CloudWatch
-- CloudWatch Alarms
+- AWS KMS
+- RDS automated backup
 
 ---
 
@@ -292,6 +328,22 @@ npm install
 npm run dev
 ```
 
+Để triển khai production, build frontend, upload thư mục `dist/` lên frontend
+S3 bucket rồi xóa cache CloudFront:
+
+```powershell
+npm run build
+aws s3 sync dist "s3://<FRONTEND_BUCKET>" --delete
+aws cloudfront create-invalidation `
+  --distribution-id "<CLOUDFRONT_DISTRIBUTION_ID>" `
+  --paths "/*"
+```
+
+Cấu hình CloudFront distribution với S3 bucket làm default origin và ALB làm
+origin thứ hai. Chuyển `/api/*` đến ALB, tắt cache cho behavior này, cho phép
+các HTTP method cần thiết và gắn WAF web ACL vào distribution. Giữ S3 bucket
+ở chế độ private và chỉ cho phép truy cập qua CloudFront Origin Access Control.
+
 ### 8.4 Setup hardware
 
 ```powershell
@@ -304,9 +356,13 @@ Cập nhật `include/secrets.h`:
 ```cpp
 #define WIFI_SSID "<YOUR_WIFI_SSID>"
 #define WIFI_PASSWORD "<YOUR_WIFI_PASSWORD>"
-#define API_BASE_URL "http://<EC2_PUBLIC_IP>:8000"
+#define API_BASE_URL "http://<ALB_DNS_NAME>"
 #define DEVICE_ID "room_01"
 ```
+
+ALB listener nhận lưu lượng HTTP và chuyển tiếp đến backend target group trên
+port `8000`. Không thêm `/api` vào `API_BASE_URL`; firmware tự nối các endpoint
+path cần thiết.
 
 Build và upload:
 
@@ -320,7 +376,10 @@ Không thêm dấu `/` ở cuối `API_BASE_URL`.
 
 ---
 
-## 9. Setup backend trên EC2
+## 9. Triển khai backend production
+
+Các lệnh dưới đây dùng để chuẩn bị backend instance cho AMI của Auto Scaling
+group. Không sử dụng instance chuẩn bị này như server production duy nhất.
 
 ### 9.1 Kết nối từ Windows PowerShell
 
@@ -328,7 +387,7 @@ Không thêm dấu `/` ở cuối `API_BASE_URL`.
 ssh -i "$env:USERPROFILE\.ssh\iot-dashboard-key.pem" ec2-user@<EC2_PUBLIC_DNS>
 ```
 
-### 9.2 Setup EC2 lần đầu
+### 9.2 Chuẩn bị backend instance
 
 ```bash
 sudo dnf update -y
@@ -351,9 +410,9 @@ Thêm:
 DATABASE_URL=postgresql+psycopg2://postgres:<URL_ENCODED_RDS_PASSWORD>@<RDS_ENDPOINT>:5432/iot_dashboard?sslmode=verify-full&sslrootcert=/home/ec2-user/aws-iot-dashboard/backend/global-bundle.pem
 ```
 
-Chỉ dùng hostname endpoint RDS, không thêm `https://` hoặc `:5432`. Security Group
-của RDS phải cho phép TCP `5432` từ Security Group của EC2. Không mở PostgreSQL
-cho `0.0.0.0/0`.
+Chỉ dùng hostname endpoint RDS, không thêm `https://` hoặc `:5432`. Security
+Group của RDS phải cho phép TCP `5432` từ Security Group của các backend
+instance. Không mở PostgreSQL cho `0.0.0.0/0`.
 
 Sau đó:
 
@@ -432,19 +491,34 @@ sudo systemctl status aws-iot-backend
 
 Nhấn `q` để thoát màn hình status.
 
-### 9.5 Các lệnh cập nhật hằng ngày
+### 9.5 Tạo AMI, target group, ALB và Auto Scaling group
 
-```bash
-cd ~/aws-iot-dashboard
-git pull origin main
-cd backend
-source venv/bin/activate
-pip install -r requirements.txt
-sudo systemctl restart aws-iot-backend
-sudo systemctl status aws-iot-backend
-```
+1. Dừng backend preparation instance và tạo một backend AMI có version.
+2. Tạo launch template sử dụng AMI, Security Group của backend instance, IAM
+   instance profile và EBS volume đã mã hóa.
+3. Tạo target group sử dụng HTTP port `8000` và health check path
+   `/api/health`.
+4. Tạo internet-facing ALB trên các public subnet tại `ap-southeast-1a` và
+   `ap-southeast-1c`. Cấu hình listener chuyển tiếp đến target group.
+5. Tạo Auto Scaling group từ launch template trong cả hai public subnet, gắn
+   target group, bật ELB health check và đặt minimum, desired, maximum capacity
+   phù hợp.
+6. Chờ tất cả instance vượt qua EC2 health check và target-group health check.
+7. Cấu hình behavior `/api/*` của CloudFront sử dụng ALB origin.
 
-Kiểm tra backend:
+Security Group của ALB chỉ nên nhận lưu lượng ứng dụng cần thiết. Security
+Group của backend instance chỉ cho phép TCP `8000` từ Security Group của ALB.
+Nếu YOLO UNO gọi ALB bằng HTTP như trong sơ đồ, cần giữ HTTP listener; chuyển
+sang HTTPS và TLS phía thiết bị khi firmware hỗ trợ.
+
+### 9.6 Triển khai bản cập nhật backend
+
+Sau khi áp dụng và kiểm thử thay đổi backend, tạo một AMI mới có version. Cập
+nhật launch template sang version mới, trỏ Auto Scaling group đến version đó
+và bắt đầu instance refresh. Quy trình này giữ mô hình nhiều instance và tránh
+cập nhật thủ công từng instance đang chạy.
+
+Kiểm tra trên từng instance:
 
 ```bash
 curl http://127.0.0.1:8000/
@@ -458,29 +532,46 @@ Xem log:
 sudo tail -f /var/log/aws-iot-backend/backend.log /var/log/aws-iot-backend/backend-error.log
 ```
 
+Kiểm tra qua load balancer:
+
+```bash
+curl http://<ALB_DNS_NAME>/api/health
+```
+
 ---
 
 ## 10. Lưu ý bảo mật
 
 - Không commit `.env`, `.pem`, private key, password hoặc `hardware/include/secrets.h`.
-- RDS chỉ nên cho phép PostgreSQL từ EC2 Security Group.
+- Giữ frontend S3 bucket ở chế độ private và dùng CloudFront Origin Access Control.
+- Gắn WAF web ACL vào CloudFront và điều chỉnh managed/rate-based rule phù hợp.
+- Chỉ cho phép port backend `8000` từ Security Group của ALB.
+- Chỉ cho phép port PostgreSQL `5432` từ Security Group của backend instance.
 - SSH chỉ nên mở cho IP quản trị.
 - Không hard-code AWS access key.
-- Dùng IAM Role cho CloudWatch Agent trên EC2.
+- Dùng EC2 IAM Role cho CloudWatch và các quyền AWS cần thiết khác.
+- Mã hóa EBS và RDS bằng KMS, đồng thời lưu backup RDS trong 7 ngày.
 
 ---
 
 ## 11. Checklist kiểm thử
 
 - [x] YOLO UNO kết nối Wi-Fi.
-- [x] YOLO UNO truy cập được backend EC2.
+- [x] CloudFront phục vụ frontend từ private S3 bucket.
+- [x] WAF bảo vệ CloudFront distribution.
+- [x] CloudFront chuyển `/api/*` đến backend ALB.
+- [x] YOLO UNO truy cập được backend ALB.
+- [x] ALB health check thành công với instance ở cả hai Availability Zone.
+- [x] Auto Scaling thay thế được backend instance không khỏe mạnh.
 - [x] Telemetry được lưu vào PostgreSQL.
 - [x] API latest và history trả dữ liệu.
 - [x] Frontend tạo được command.
 - [x] Hardware nhận và thực thi command.
 - [x] Hardware gửi command ACK.
 - [x] Command chuyển từ `Pending` sang `Executed`.
-- [x] CloudWatch nhận logs và metrics.
+- [x] RDS Multi-AZ replication và failover đã được cấu hình.
+- [x] Backup RDS được lưu trong 7 ngày.
+- [x] CloudWatch nhận log backend và metric hạ tầng.
 
 ---
 

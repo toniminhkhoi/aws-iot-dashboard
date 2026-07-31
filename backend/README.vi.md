@@ -5,6 +5,11 @@
 FastAPI backend nhận telemetry từ thiết bị IoT, lưu dữ liệu vào PostgreSQL và
 quản lý command điều khiển theo trạng thái `Pending` → `Executed`.
 
+Trong production, Application Load Balancer chuyển tiếp lưu lượng HTTP trên
+port `8000` đến các backend instance trong Auto Scaling group hoạt động trên
+hai Availability Zone. Các instance kết nối đến Amazon RDS for PostgreSQL
+Multi-AZ qua RDS endpoint trên TCP `5432`.
+
 ## Công nghệ
 
 - FastAPI + Uvicorn
@@ -108,8 +113,10 @@ Sau khi khởi động:
 - Swagger UI: `http://localhost:8000/docs`
 - Health check: `http://localhost:8000/api/health`
 
-Khi chạy production, bỏ `--reload` và nên đặt API sau reverse proxy hoặc
-security group phù hợp.
+Khi chạy production, bỏ `--reload`. Tạo backend AMI đã bật service rồi triển
+khai bằng launch template và Auto Scaling group phía sau Application Load
+Balancer. Xem [hướng dẫn triển khai](../README.vi.md#9-triển-khai-backend-production)
+ở README gốc.
 
 ## API chính
 
@@ -198,7 +205,7 @@ dòng. Nên luôn truyền `--base-url` để tránh sử dụng địa chỉ m�
 - `certificate verify failed` hoặc không tìm thấy CA: kiểm tra
   `global-bundle.pem`, `sslrootcert` và chạy backend từ đúng thư mục `backend`.
 - Timeout khi kết nối RDS: Security Group của RDS phải cho phép TCP `5432` từ
-  Security Group của EC2 hoặc từ nguồn truy cập được phê duyệt.
+  Security Group của backend instance hoặc từ nguồn truy cập được phê duyệt.
 - `404` khi tạo command: gửi telemetry cho `deviceId` đó trước.
 - `ModuleNotFoundError`: kích hoạt virtual environment và cài lại
   `requirements.txt`.

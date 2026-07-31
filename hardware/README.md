@@ -4,7 +4,8 @@
 
 Firmware for the hardware device in the **AWS IoT Monitoring and Control
 Dashboard** project. The YOLO UNO reads sensors, controls actuators
-automatically, and communicates directly with the FastAPI backend over HTTP.
+automatically, and communicates over HTTP with the FastAPI backend through the
+Application Load Balancer.
 
 The current firmware uses:
 
@@ -17,8 +18,8 @@ The current firmware uses:
 - Wi-Fi for telemetry, commands, and execution acknowledgements.
 
 > The firmware does not connect to AWS IoT Core and does not use MQTT. The
-> project name refers to the AWS-hosted system; the board calls the FastAPI
-> backend directly over HTTP.
+> project name refers to the AWS-hosted system; the board calls the backend ALB
+> directly over HTTP.
 
 ## 1. Directory structure
 
@@ -121,7 +122,7 @@ Open `include/secrets.h` and replace the values:
 
 constexpr char WIFI_SSID[] = "WIFI_NAME";
 constexpr char WIFI_PASSWORD[] = "WIFI_PASSWORD";
-constexpr char API_BASE_URL[] = "http://BACKEND_ADDRESS:8000";
+constexpr char API_BASE_URL[] = "http://ALB_DNS_NAME";
 constexpr char DEVICE_ID[] = "room_01";
 ```
 
@@ -131,7 +132,7 @@ Configuration fields:
 |---|---|---|
 | `WIFI_SSID` | Wi-Fi network used by the board | `"MyWifi"` |
 | `WIFI_PASSWORD` | Wi-Fi password | `"secret"` |
-| `API_BASE_URL` | FastAPI base URL; trailing `/` is optional | `"http://192.168.1.10:8000"` |
+| `API_BASE_URL` | ALB base URL; trailing `/` is optional | `"http://my-alb.ap-southeast-1.elb.amazonaws.com"` |
 | `DEVICE_ID` | Device ID; must match the backend/dashboard | `"room_01"` |
 
 Notes:
@@ -139,6 +140,7 @@ Notes:
 - `include/secrets.h` is excluded by `.gitignore`; never commit real values.
 - `API_BASE_URL` must be reachable from the board's network. Do not use
   `localhost` or `127.0.0.1` unless the backend actually runs on the board.
+- Do not append `/api`; the firmware adds each API endpoint path.
 - The firmware currently uses `HTTPClient` with HTTP URLs. Add TLS
   configuration to the firmware if the backend only accepts HTTPS.
 - The firmware removes a trailing `/` from `API_BASE_URL`.
@@ -392,8 +394,9 @@ These environment variables apply only to the current terminal.
 ### Wi-Fi connects but telemetry fails
 
 - Test `API_BASE_URL` from another device on the same network.
-- Open the backend port, `8000` by default, in the firewall or Security Group.
-- Confirm that the backend listens on an interface reachable from the network.
+- Confirm that the ALB listener is reachable and its target group is healthy.
+- Confirm that the backend Security Group allows port `8000` from the ALB
+  Security Group.
 - If the log says `DHT20 has no valid data yet`, check DHT20 wiring and address
   `0x38`; telemetry is withheld until valid DHT data exists.
 
